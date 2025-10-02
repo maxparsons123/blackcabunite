@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <title>Black Cab Unite v5.4</title>
-
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  
   <!-- PWA Manifest -->
   <link rel="manifest" href="/blackcabunite/manifest.json">
   <meta name="theme-color" content="#FFD700">
@@ -11,45 +12,70 @@
   <!-- Favicon -->
   <link rel="icon" href="/blackcabunite/icon-192.png">
 
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
-    html, body, #map { height:100%; margin:0; padding:0; }
-    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; display:flex; flex-direction:column; overflow:hidden; background:#f7fafc; }
-
+    body { 
+      margin:0; 
+      font-family:system-ui, -apple-system, "Segoe UI", sans-serif; 
+      background:#f7fafc; 
+      display:flex; 
+      flex-direction:column; 
+      height:100vh; 
+      overflow:hidden;
+    }
     #map { flex:1; width:100%; height:100%; z-index:1; }
 
-    /* Header */
-    #headerBanner { position:absolute; top:0; left:0; right:0; background:#000; color:#FFD700; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; z-index:1001; box-shadow:0 2px 8px rgba(0,0,0,0.3); }
-    #appTitleContainer { display:flex; flex-direction:column; align-items:flex-start; }
+    /* Header Banner */
+    #headerBanner {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      background: #000; color: #FFD700;
+      padding: 12px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      z-index: 1001;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    #appTitleContainer { display: flex; flex-direction: column; align-items: flex-start; }
     #appTitle { font-weight:700; font-size:18px; display:flex; align-items:center; gap:10px; cursor:pointer; }
-    #appTitle::before { content:"🚕"; font-size:20px; }
-    #statusCaption { font-size:12px; margin-top:4px; display:flex; align-items:center; gap:4px; color:#FFD700; }
+    #appTitle::before { content: "🚕"; font-size:20px; }
+    #statusCaption { font-size:12px; color:#FFD700; margin-top:4px; display:flex; align-items:center; gap:4px; }
     .status-dot { width:8px; height:8px; border-radius:50%; }
     .status-available .status-dot { background:#28a745; }
     .status-busy .status-dot { background:#ffc107; }
     .status-offline .status-dot { background:#dc3545; }
-
-    #menuBtn { background:#FFD700; color:#000; border:none; width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; cursor:pointer; z-index:1002; box-shadow:0 2px 6px rgba(0,0,0,0.3); transition:transform 0.1s ease; }
-    #menuBtn:active { transform:scale(0.95); }
+    #menuBtn {
+      background:#FFD700; color:#000; border:none;
+      width:44px; height:44px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:bold; cursor:pointer; z-index:1002;
+      box-shadow:0 2px 6px rgba(0,0,0,0.3);
+      transition: transform 0.1s ease;
+    }
+    #menuBtn:active { transform: scale(0.95); }
 
     /* Status bar */
-    #status { position:absolute; bottom:80px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,0.9); padding:8px 16px; border-radius:24px; font-size:14px; color:#333; z-index:1000; text-align:center; max-width:90%; box-shadow:0 4px 12px rgba(0,0,0,0.15); font-weight:600; }
+    #status { 
+      position:absolute; bottom:80px; left:50%; transform:translateX(-50%);
+      background:rgba(255,255,255,0.9); padding:8px 16px; border-radius:24px;
+      font-size:14px; color:#333; z-index:1000; text-align:center; max-width:90%;
+      box-shadow:0 4px 12px rgba(0,0,0,0.15); font-weight:600;
+    }
     .gps-source { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; }
     .gps-gps { background:#28a745; }
     .gps-network { background:#17a2b8; }
     .gps-poor { background:#ffc107; }
 
     /* Job panel */
-    #jobPanel { position:absolute; bottom:0; left:0; right:0; background:white; padding:20px; border-top:2px solid #eee; z-index:1000; box-shadow:0 -4px 20px rgba(0,0,0,0.1); display:none; }
+    #jobPanel { 
+      position:absolute; bottom:0; left:0; right:0;
+      background:white; padding:20px; border-top:2px solid #eee;
+      z-index:1000; box-shadow:0 -4px 20px rgba(0,0,0,0.1); display:none;
+    }
     #jobPanel h2 { margin:0 0 16px 0; font-size:20px; color:#1f6feb; text-align:center; }
     #jobInfo { background:#f8f9fa; padding:16px; border-radius:12px; margin-bottom:24px; font-size:15px; line-height:1.5; }
 
-    /* Status Dropdown */
-    #statusDropdown { position:absolute; top:52px; left:16px; background:white; border:1px solid #ddd; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:1003; display:none; flex-direction:column; min-width:180px; }
-    .status-option { padding:12px 16px; cursor:pointer; display:flex; align-items:center; gap:10px; }
-    #logOffBtn { padding:12px 16px; cursor:pointer; display:flex; align-items:center; gap:10px; border-top:1px solid #eee; color:#dc3545; font-weight:bold; }
   </style>
 </head>
 <body>
@@ -57,56 +83,37 @@
   <!-- Header -->
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v5.4</div>
-      <div id="statusCaption"><span class="status-dot status-available"></span> Available</div>
+      <div id="appTitle">Black Cab Unite</div>
+      <div id="statusCaption"><span class="status-dot status-available"></span> Online</div>
     </div>
     <button id="menuBtn">☰</button>
-  </div>
-
-  <!-- Status Dropdown -->
-  <div id="statusDropdown">
-    <div class="status-option" data-status="available"><span class="status-led" style="background:#28a745; width:12px; height:12px; border-radius:50%;"></span> Available</div>
-    <div class="status-option" data-status="busy"><span class="status-led" style="background:#ffc107; width:12px; height:12px; border-radius:50%;"></span> Busy</div>
-    <div class="status-option" data-status="offline"><span class="status-led" style="background:#dc3545; width:12px; height:12px; border-radius:50%;"></span> Offline</div>
-    <div id="logOffBtn"><span>🚪</span> Log Off</div>
   </div>
 
   <!-- Map -->
   <div id="map"></div>
 
   <!-- Status Bar -->
-  <div id="status">Initializing...</div>
+  <div id="status">GPS: <span class="gps-source gps-gps"></span> Strong</div>
 
   <!-- Job Panel -->
   <div id="jobPanel">
-    <h2>🚕 New Job Request</h2>
-    <div id="jobInfo">
-      <div class="job-info-label">Pickup Location</div>
-      <div class="job-info-value" id="pickupLocation">Loading...</div>
-      <div class="job-info-label" style="margin-top:12px;">Customer Phone</div>
-      <div class="job-info-value" id="customerPhone">Loading...</div>
-      <div id="jobTimer">⏳ Expires in: <span id="timerSeconds">30</span>s</div>
-    </div>
-    <div id="micIndicator">
-      <div class="mic-icon">🎤</div>
-      <div class="mic-label">Say “accept” or “reject”</div>
-    </div>
-    <div class="job-actions">
-      <button class="job-btn accept-btn" id="acceptBtn">✅ ACCEPT JOB</button>
-      <button class="job-btn reject-btn" id="rejectBtn">❌ REJECT</button>
-    </div>
+    <h2>Current Job</h2>
+    <div id="jobInfo">No jobs assigned.</div>
   </div>
 
-  <!-- Leaflet & MQTT JS -->
+  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
   <!-- Initialize Map -->
   <script>
-    if (!window.map) {
-      window.map = L.map('map').setView([51.505, -0.09], 13);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'&copy; OpenStreetMap contributors' }).addTo(window.map);
-    }
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!window.map) {
+        window.map = L.map('map').setView([51.505, -0.09], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(window.map);
+      }
+    });
   </script>
 
   <!-- Service Worker Registration -->
@@ -117,6 +124,7 @@
         .catch(err => console.error('❌ SW registration failed:', err));
     }
   </script>
+
 </body>
 </html>
 document.addEventListener('DOMContentLoaded', () => {
@@ -1220,6 +1228,7 @@ document.addEventListener('DOMContentLoaded', () => {
   </script>
 </body>
 </html>
+
 
 
 
