@@ -3,8 +3,8 @@ const urlsToCache = [
   "/blackcabunite/",
   "/blackcabunite/index.html",
   "/blackcabunite/manifest.json",
-  "/blackcabunite/icons/icon-192.png",
-  "/blackcabunite/icons/icon-512.png"
+  "/blackcabunite/icon-192.png",
+  "/blackcabunite/icon-512.png"
 ];
 
 // Install - cache app shell
@@ -48,3 +48,4 @@ self.addEventListener("fetch", event => {
     })
   );
 });
+
