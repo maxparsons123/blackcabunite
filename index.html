@@ -4,14 +4,16 @@
   <meta charset="utf-8" />
   <title>Black Cab Unite v5.4</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
   <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#000000">
 
   <style>
-    /* === All your CSS as in the original code === */
+    /* === All your CSS from original page === */
     body { 
       margin:0; 
       font-family:system-ui, -apple-system, "Segoe UI", sans-serif; 
@@ -27,12 +29,14 @@
       height:100%;
       z-index:1;
     }
-    /* === The rest of your CSS goes here exactly as before === */
-    /* ... (omitted for brevity, copy all your existing CSS) ... */
+    /* ... copy the rest of your CSS exactly as before ... */
   </style>
 </head>
 <body>
+  <!-- Map -->
   <div id="map"></div>
+
+  <!-- Header Banner -->
   <div id="headerBanner">
     <div id="appTitleContainer">
       <div id="appTitle">Black Cab Unite v5.4</div>
@@ -44,34 +48,22 @@
   </div>
 
   <!-- Status Dropdown -->
-  <div id="statusDropdown" style="
-    position: absolute;
-    top: 52px;
-    left: 16px;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    z-index: 1003;
-    display: none;
-    flex-direction: column;
-    min-width: 180px;
-  ">
-    <!-- Status options and logoff button -->
-    <div class="status-option" data-status="available" style="padding:12px 16px; cursor:pointer; display:flex; align-items:center; gap:10px;">
-      <span class="status-led" style="background:#28a745; width:12px; height:12px; border-radius:50%;"></span> Available
+  <div id="statusDropdown" style="position:absolute;top:52px;left:16px;background:white;border:1px solid #ddd;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:1003;display:none;flex-direction:column;min-width:180px;">
+    <div class="status-option" data-status="available" style="padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;">
+      <span class="status-led" style="background:#28a745;width:12px;height:12px;border-radius:50%;"></span> Available
     </div>
-    <div class="status-option" data-status="busy" style="padding:12px 16px; cursor:pointer; display:flex; align-items:center; gap:10px;">
-      <span class="status-led" style="background:#ffc107; width:12px; height:12px; border-radius:50%;"></span> Busy
+    <div class="status-option" data-status="busy" style="padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;">
+      <span class="status-led" style="background:#ffc107;width:12px;height:12px;border-radius:50%;"></span> Busy
     </div>
-    <div class="status-option" data-status="offline" style="padding:12px 16px; cursor:pointer; display:flex; align-items:center; gap:10px;">
-      <span class="status-led" style="background:#dc3545; width:12px; height:12px; border-radius:50%;"></span> Offline
+    <div class="status-option" data-status="offline" style="padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;">
+      <span class="status-led" style="background:#dc3545;width:12px;height:12px;border-radius:50%;"></span> Offline
     </div>
-    <div id="logOffBtn" style="padding:12px 16px; cursor:pointer; display:flex; align-items:center; gap:10px; border-top:1px solid #eee; color:#dc3545; font-weight:bold;">
+    <div id="logOffBtn" style="padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;border-top:1px solid #eee;color:#dc3545;font-weight:bold;">
       <span>🚪</span> Log Off
     </div>
   </div>
 
+  <!-- Status Bar -->
   <div id="status">Initializing...</div>
 
   <!-- Job Panel -->
@@ -112,36 +104,12 @@
   </div>
 
   <!-- Job Won Modal -->
-  <div id="jobWonModal" style="
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 2000;
-    justify-content: center;
-    align-items: center;
-  ">
-    <div style="
-      background: white;
-      padding: 30px;
-      border-radius: 16px;
-      text-align: center;
-      max-width: 320px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-    ">
-      <div style="font-size: 60px; margin-bottom: 16px;">🎉</div>
-      <h2 style="margin: 0 0 12px; color: #1f6feb;">You Won the Job!</h2>
-      <p style="margin: 0 0 24px; color: #555;">Get ready to pick up the customer.</p>
-      <button id="closeJobWonModal" style="
-        background: #1f6feb;
-        color: white;
-        border: none;
-        padding: 12px 24px;
-        border-radius: 12px;
-        font-weight: bold;
-        cursor: pointer;
-        width: 100%;
-      ">Close</button>
+  <div id="jobWonModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2000;justify-content:center;align-items:center;">
+    <div style="background:white;padding:30px;border-radius:16px;text-align:center;max-width:320px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+      <div style="font-size:60px;margin-bottom:16px;">🎉</div>
+      <h2 style="margin:0 0 12px;color:#1f6feb;">You Won the Job!</h2>
+      <p style="margin:0 0 24px;color:#555;">Get ready to pick up the customer.</p>
+      <button id="closeJobWonModal" style="background:#1f6feb;color:white;border:none;padding:12px 24px;border-radius:12px;font-weight:bold;cursor:pointer;width:100%;">Close</button>
     </div>
   </div>
 
@@ -149,41 +117,34 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
-  <!-- === PWA + Your existing scripts === -->
+  <!-- PWA & App Scripts -->
   <script>
-  // Register Service Worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(registration => {
-        console.log('✅ Service Worker registered:', registration.scope);
-      })
-      .catch(error => {
-        console.error('❌ SW registration failed:', error);
-      });
-  }
-
-  // Listen for PWA install prompt
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    console.log('💡 PWA install prompt ready');
-  });
-
-  function promptPWAInstall() {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then(choiceResult => {
-        if (choiceResult.outcome === 'accepted') {
-          console.log('✅ User accepted the PWA install');
-        } else {
-          console.log('❌ User dismissed the PWA install');
-        }
-        deferredPrompt = null;
-      });
+    // ===== PWA: Service Worker =====
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => console.log('✅ Service Worker registered:', reg.scope))
+        .catch(err => console.error('❌ SW registration failed:', err));
     }
-  }
-  <script>
+
+    // ===== PWA: Install Prompt =====
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      console.log('💡 PWA install prompt ready');
+    });
+
+    function promptPWAInstall() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(choice => {
+          if (choice.outcome === 'accepted') console.log('✅ User accepted PWA install');
+          else console.log('❌ User dismissed PWA install');
+          deferredPrompt = null;
+        });
+      }
+    }
+
 document.addEventListener('DOMContentLoaded', () => {
   // ===== Driver Registration =====
   let DRIVER_ID = localStorage.getItem('driver_id');
@@ -1285,6 +1246,7 @@ document.addEventListener('DOMContentLoaded', () => {
   </script>
 </body>
 </html>
+
 
 
 
