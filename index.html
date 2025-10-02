@@ -5,28 +5,24 @@
   <title>Black Cab Unite v5.4</title>
 
   <!-- PWA Manifest -->
- <link rel="manifest" href="/blackcabunite/manifest.json">
+  <link rel="manifest" href="/blackcabunite/manifest.json">
   <meta name="theme-color" content="#FFD700">
 
   <!-- Favicon -->
-  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="icon" href="/blackcabunite/icons/icon-192.png">
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
-    /* ---------- Existing CSS ---------- */
     body { 
       margin:0; 
       font-family:system-ui, -apple-system, "Segoe UI", sans-serif; 
       background:#f7fafc; 
-      display:flex; 
-      flex-direction:column; 
-      height:100vh; 
-      overflow:hidden;
+      display:flex; flex-direction:column; 
+      height:100vh; overflow:hidden;
     }
     #map { flex:1; width:100%; height:100%; z-index:1; }
-    /* --- header banner --- */
     #headerBanner {
       position: absolute; top:0; left:0; right:0;
       background: #000; color: #FFD700;
@@ -40,9 +36,7 @@
       display:flex; align-items:center; gap:10px; cursor:pointer;
     }
     #appTitle::before { content:"🚕"; font-size:20px; }
-    #statusCaption {
-      font-size:12px; color:#FFD700; margin-top:4px; display:flex; align-items:center; gap:4px;
-    }
+    #statusCaption { font-size:12px; color:#FFD700; margin-top:4px; display:flex; align-items:center; gap:4px; }
     .status-dot { width:8px; height:8px; border-radius:50%; }
     .status-available .status-dot { background:#28a745; }
     .status-busy .status-dot { background:#ffc107; }
@@ -56,8 +50,6 @@
       transition: transform 0.1s ease;
     }
     #menuBtn:active { transform: scale(0.95); }
-
-    /* ---------- status bar ---------- */
     #status { 
       position:absolute; bottom:80px; left:50%;
       transform: translateX(-50%);
@@ -72,8 +64,6 @@
     .gps-gps { background:#28a745; }
     .gps-network { background:#17a2b8; }
     .gps-poor { background:#ffc107; }
-
-    /* ---------- job panel ---------- */
     #jobPanel { 
       position:absolute; bottom:0; left:0; right:0;
       background:white; padding:20px; border-top:2px solid #eee;
@@ -82,9 +72,6 @@
     }
     #jobPanel h2 { margin:0 0 16px 0; font-size:20px; color:#1f6feb; text-align:center; }
     #jobInfo { background:#f8f9fa; padding:16px; border-radius:12px; margin-bottom:24px; font-size:15px; line-height:1.5; }
-    /* ... keep your other CSS from the snippet as-is ... */
-
-    /* Map height fix for Leaflet */
     html, body, #map { height:100%; margin:0; padding:0; }
   </style>
 </head>
@@ -114,16 +101,19 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const map = L.map('map').setView([51.505, -0.09], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    // Initialize Leaflet map safely
+    if (!window.map) {
+      window.map = L.map('map').setView([51.505, -0.09], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(window.map);
+    }
   </script>
 
   <!-- Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js')
+      navigator.serviceWorker.register('/blackcabunite/service-worker.js')
         .then(() => console.log('✅ Service Worker registered'))
         .catch(err => console.error('❌ SW registration failed:', err));
     }
@@ -1342,4 +1332,3 @@ document.addEventListener('DOMContentLoaded', () => {
   </script>
 </body>
 </html>
-
