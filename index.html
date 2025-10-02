@@ -114,12 +114,8 @@
 </body>
 </html>
 
-<script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/blackcabunite/service-worker.js")
-    .then(() => console.log("✅ Service Worker registered"))
-    .catch(err => console.error("❌ SW registration failed:", err));
-}
+
+
 </script>
   <div id="map"></div>
   <div id="headerBanner">
@@ -1326,4 +1322,5 @@ document.addEventListener('DOMContentLoaded', () => {
   </script>
 </body>
 </html>
+
 
