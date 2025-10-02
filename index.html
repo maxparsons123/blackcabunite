@@ -15,64 +15,56 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
+    html, body, #map { height:100%; margin:0; padding:0; }
     body { 
-      margin:0; 
       font-family:system-ui, -apple-system, "Segoe UI", sans-serif; 
-      background:#f7fafc; 
-      display:flex; flex-direction:column; 
-      height:100vh; overflow:hidden;
+      display:flex; flex-direction:column; overflow:hidden;
+      background:#f7fafc;
     }
     #map { flex:1; width:100%; height:100%; z-index:1; }
+
     #headerBanner {
-      position: absolute; top:0; left:0; right:0;
-      background: #000; color: #FFD700;
-      padding: 12px 16px;
-      display: flex; justify-content: space-between; align-items: center;
-      z-index: 1001; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      position:absolute; top:0; left:0; right:0;
+      background:#000; color:#FFD700;
+      padding:12px 16px;
+      display:flex; justify-content:space-between; align-items:center;
+      z-index:1001; box-shadow:0 2px 8px rgba(0,0,0,0.3);
     }
-    #appTitleContainer { display:flex; flex-direction: column; align-items:flex-start; }
-    #appTitle {
-      font-weight:700; font-size:18px; letter-spacing:0.5px;
-      display:flex; align-items:center; gap:10px; cursor:pointer;
-    }
+    #appTitleContainer { display:flex; flex-direction:column; align-items:flex-start; }
+    #appTitle { font-weight:700; font-size:18px; display:flex; align-items:center; gap:10px; cursor:pointer; }
     #appTitle::before { content:"🚕"; font-size:20px; }
-    #statusCaption { font-size:12px; color:#FFD700; margin-top:4px; display:flex; align-items:center; gap:4px; }
+    #statusCaption { font-size:12px; margin-top:4px; display:flex; align-items:center; gap:4px; color:#FFD700; }
     .status-dot { width:8px; height:8px; border-radius:50%; }
     .status-available .status-dot { background:#28a745; }
     .status-busy .status-dot { background:#ffc107; }
     .status-offline .status-dot { background:#dc3545; }
     #menuBtn {
-      background: #FFD700; color:#000; border:none;
+      background:#FFD700; color:#000; border:none;
       width:44px; height:44px; border-radius:50%;
       display:flex; align-items:center; justify-content:center;
       font-weight:bold; cursor:pointer; z-index:1002;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      transition: transform 0.1s ease;
+      box-shadow:0 2px 6px rgba(0,0,0,0.3); transition:transform 0.1s ease;
     }
-    #menuBtn:active { transform: scale(0.95); }
+    #menuBtn:active { transform:scale(0.95); }
+
     #status { 
-      position:absolute; bottom:80px; left:50%;
-      transform: translateX(-50%);
-      background: rgba(255,255,255,0.9);
-      padding:8px 16px; border-radius:24px;
-      font-size:14px; color:#333;
-      z-index:1000; text-align:center; max-width:90%;
-      box-shadow:0 4px 12px rgba(0,0,0,0.15);
-      font-weight:600;
+      position:absolute; bottom:80px; left:50%; transform:translateX(-50%);
+      background:rgba(255,255,255,0.9); padding:8px 16px; border-radius:24px;
+      font-size:14px; color:#333; z-index:1000; text-align:center; max-width:90%;
+      box-shadow:0 4px 12px rgba(0,0,0,0.15); font-weight:600;
     }
     .gps-source { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; }
     .gps-gps { background:#28a745; }
     .gps-network { background:#17a2b8; }
     .gps-poor { background:#ffc107; }
+
     #jobPanel { 
       position:absolute; bottom:0; left:0; right:0;
       background:white; padding:20px; border-top:2px solid #eee;
-      z-index:1000; box-shadow:0 -4px 20px rgba(0,0,0,0.1);
-      display:none;
+      z-index:1000; box-shadow:0 -4px 20px rgba(0,0,0,0.1); display:none;
     }
     #jobPanel h2 { margin:0 0 16px 0; font-size:20px; color:#1f6feb; text-align:center; }
     #jobInfo { background:#f8f9fa; padding:16px; border-radius:12px; margin-bottom:24px; font-size:15px; line-height:1.5; }
-    html, body, #map { height:100%; margin:0; padding:0; }
   </style>
 </head>
 <body>
@@ -118,8 +110,10 @@
         .catch(err => console.error('❌ SW registration failed:', err));
     }
   </script>
+
 </body>
 </html>
+
 <script>
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/service-worker.js")
