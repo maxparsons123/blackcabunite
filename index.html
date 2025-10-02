@@ -3,18 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <title>Black Cab Unite v5.4</title>
- <link rel="manifest" href="/manifest.json">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#FFD700">
 
   <!-- Favicon -->
   <link rel="icon" href="/icons/icon-192.png">
 
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<meta name="theme-color" content="#FFD700"
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
   <style>
+    /* ---------- Existing CSS ---------- */
     body { 
       margin:0; 
       font-family:system-ui, -apple-system, "Segoe UI", sans-serif; 
@@ -24,528 +25,111 @@
       height:100vh; 
       overflow:hidden;
     }
-    #map { 
-      flex:1; 
-      width:100%;
-      height:100%;
-      z-index:1;
-    }
-    /* Black Cab Unite Header Banner */
+    #map { flex:1; width:100%; height:100%; z-index:1; }
+    /* --- header banner --- */
     #headerBanner {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      background: #000;
-      color: #FFD700;
+      position: absolute; top:0; left:0; right:0;
+      background: #000; color: #FFD700;
       padding: 12px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 1001;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      display: flex; justify-content: space-between; align-items: center;
+      z-index: 1001; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
-    #appTitleContainer {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-    }
+    #appTitleContainer { display:flex; flex-direction: column; align-items:flex-start; }
     #appTitle {
-      font-weight: 700;
-      font-size: 18px;
-      letter-spacing: 0.5px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
+      font-weight:700; font-size:18px; letter-spacing:0.5px;
+      display:flex; align-items:center; gap:10px; cursor:pointer;
     }
-    #appTitle::before {
-      content: "🚕";
-      font-size: 20px;
-    }
+    #appTitle::before { content:"🚕"; font-size:20px; }
     #statusCaption {
-      font-size: 12px;
-      color: #FFD700;
-      margin-top: 4px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      font-size:12px; color:#FFD700; margin-top:4px; display:flex; align-items:center; gap:4px;
     }
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-    .status-available .status-dot { background: #28a745; }
-    .status-busy .status-dot { background: #ffc107; }
-    .status-offline .status-dot { background: #dc3545; }
+    .status-dot { width:8px; height:8px; border-radius:50%; }
+    .status-available .status-dot { background:#28a745; }
+    .status-busy .status-dot { background:#ffc107; }
+    .status-offline .status-dot { background:#dc3545; }
     #menuBtn {
-      background: #FFD700;
-      color: #000;
-      border: none;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      cursor: pointer;
-      z-index: 1002;
+      background: #FFD700; color:#000; border:none;
+      width:44px; height:44px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:bold; cursor:pointer; z-index:1002;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
       transition: transform 0.1s ease;
     }
-    #menuBtn:active {
-      transform: scale(0.95);
-    }
-    /* Status bar at bottom */
-    #status { 
-      position: absolute;
-      bottom: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255, 255, 255, 0.9);
-      padding: 8px 16px;
-      border-radius: 24px;
-      font-size: 14px;
-      color: #333;
-      z-index: 1000;
-      text-align: center;
-      max-width: 90%;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      font-weight: 600;
-    }
-    .gps-source {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      margin-right: 6px;
-    }
-    .gps-gps { background: #28a745; }
-    .gps-network { background: #17a2b8; }
-    .gps-poor { background: #ffc107; }
-    /* Job panel */
-    #jobPanel { 
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: white;
-      padding: 20px;
-      border-top: 2px solid #eee;
-      z-index: 1000;
-      box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
-      display: none;
-    }
-    #jobPanel h2 { 
-      margin: 0 0 16px 0; 
-      font-size: 20px; 
-      color: #1f6feb;
-      text-align: center;
-    }
-    #jobInfo { 
-      background: #f8f9fa;
-      padding: 16px;
-      border-radius: 12px;
-      margin-bottom: 24px;
-      font-size: 15px;
-      line-height: 1.5;
-    }
-    .job-info-label {
-      font-weight: 600;
-      color: #495057;
-      margin-bottom: 4px;
-    }
-    .job-info-value {
-      font-size: 16px;
-      color: #212529;
-    }
-    #jobTimer {
-      margin-top: 12px;
-      font-size: 14px;
-      color: #dc3545;
-      font-weight: bold;
-      display: none;
-    }
-    .job-actions {
-      display: flex;
-      gap: 16px;
-    }
-    .job-btn {
-      flex: 1;
-      padding: 18px 12px;
-      font-size: 18px;
-      border: none;
-      border-radius: 16px;
-      cursor: pointer;
-      font-weight: 700;
-      min-height: 56px;
-    }
-    .accept-btn {
-      background: linear-gradient(135deg, #28a745, #20c997);
-      color: white;
-    }
-    .reject-btn {
-      background: linear-gradient(135deg, #dc3545, #e83e8c);
-      color: white;
-    }
-    /* Glowing Mic Indicator */
-    #micIndicator {
-      text-align: center;
-      margin: 16px 0;
-      display: none;
-    }
-    .mic-icon {
-      width: 48px;
-      height: 48px;
-      background: #1f6feb;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: bold;
-      box-shadow: 0 0 12px #1f6feb;
-      animation: micGlow 1.5s infinite alternate;
-    }
-    @keyframes micGlow {
-      from { box-shadow: 0 0 12px #1f6feb; }
-      to { box-shadow: 0 0 24px #1f6feb, 0 0 32px #1f6feb; }
-    }
-    .mic-label {
-      font-size: 13px;
-      color: #555;
-      margin-top: 8px;
-    }
-    /* Driver icons */
-    .other-driver-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: bold;
-      font-size: 10px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-    }
-    /* Loading overlay */
-    #loadingOverlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.7);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 500;
-      color: white;
-      font-size: 18px;
-    }
-    .loading-spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid rgba(255,255,255,0.3);
-      border-radius: 50%;
-      border-top: 4px solid white;
-      animation: spin 1s linear infinite;
-      margin-bottom: 16px;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    /* Main Menu Panel */
-    #menuPanel {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 70vh;
-      background: white;
-      display: none;
-      flex-direction: column;
-      z-index: 2000;
-      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-      transform: translateY(100%);
-      transition: transform 0.3s ease;
-    }
-    #menuPanel.active {
-      display: flex;
-      transform: translateY(0);
-    }
-    #menuNav {
-      display: flex;
-      background: #f8f9fa;
-      border-bottom: 1px solid #eee;
-    }
-    .menu-nav-btn {
-      flex: 1;
-      background: transparent;
-      border: none;
-      padding: 16px 0;
-      font-weight: 600;
-      font-size: 15px;
-      color: #666;
-      cursor: pointer;
-    }
-    .menu-nav-btn.active {
-      color: #1f6feb;
-      background: #e8f0fe;
-      border-bottom: 3px solid #1f6feb;
-    }
-    #menuContent {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px;
-    }
-    .current-job-info {
-      padding: 20px;
-      background: #e8f5e8;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      border-left: 4px solid #28a745;
-    }
-    .job-detail {
-      margin-bottom: 12px;
-    }
-    .job-label {
-      font-weight: 700;
-      color: #1f6feb;
-      font-size: 15px;
-      margin-bottom: 4px;
-    }
-    .job-value {
-      font-size: 17px;
-      color: #333;
-      word-break: break-word;
-    }
-    .no-current-job {
-      text-align: center;
-      padding: 50px 20px;
-      color: #666;
-    }
-    .no-current-job .icon {
-      font-size: 60px;
-      margin-bottom: 20px;
-      opacity: 0.7;
-    }
-    .job-item {
-      padding: 16px;
-      border: 1px solid #eee;
-      border-radius: 12px;
-      margin-bottom: 12px;
-      background: #f9f9f9;
-      position: relative;
-      overflow: hidden;
-    }
-    .job-item.allocated { border-left: 4px solid #28a745; background: #e8f5e8; }
-    .job-item.processing, .job-item.bidding { border-left: 4px solid #1f6feb; background: #e8f0fe; }
-    .job-item.completed { border-left: 4px solid #6c757d; background: #f8f9fa; }
-    .job-item.lost, .job-item.rejected, .job-item.expired { border-left: 4px solid #dc3545; background: #f8d7da; }
-    .job-item.queued { border-left: 4px solid #ffc107; background: #fff8e1; }
-    .job-id { font-weight: 700; color: #1f6feb; margin-bottom: 6px; font-size: 16px; }
-    .job-pub { font-size: 14px; color: #666; margin-bottom: 6px; }
-    .job-phone { font-size: 15px; color: #333; margin-bottom: 6px; }
-    .job-status {
-      font-size: 12px;
-      font-weight: 700;
-      padding: 4px 8px;
-      border-radius: 6px;
-    }
-    .status-processing, .status-bidding { background: #d1e7ff; color: #084298; }
-    .status-allocated { background: #d1e7dd; color: #0f5132; }
-    .status-completed { background: #e2e3e5; color: #41464b; }
-    .status-lost, .status-rejected, .status-expired { background: #f8d7da; color: #842029; }
-    .status-queued { background: #fff3cd; color: #856404; }
-    /* Swipe-to-delete with trash icon */
-    .job-item::after {
-      content: "🗑️";
-      position: absolute;
-      right: 16px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: #dc3545;
-      color: white;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-    .job-item.swiping::after {
-      opacity: 1;
-    }
-    #chatMessages {
-      flex: 1;
-      padding: 16px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .message {
-      max-width: 85%;
-      padding: 14px 16px;
-      border-radius: 20px;
-      font-size: 15px;
-      line-height: 1.5;
-      word-wrap: break-word;
-    }
-    .received { background: #e9ecef; align-self: flex-start; border-bottom-left-radius: 6px; }
-    .sent { background: #000; color: white; align-self: flex-end; border-bottom-right-radius: 6px; }
-    .message-info {
-      font-size: 12px;
-      opacity: 0.8;
-      margin-top: 6px;
-      display: flex;
-      justify-content: space-between;
-    }
-    #chatInputContainer {
-      display: flex;
-      padding: 12px;
-      background: white;
-      border-top: 1px solid #eee;
-    }
-    #chatInput {
-      flex: 1;
-      padding: 14px;
-      border: 2px solid #ddd;
-      border-radius: 24px;
-      font-size: 16px;
-      outline: none;
-    }
-    #chatInput:focus {
-      border-color: #1f6feb;
-      box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.2);
-    }
-    #sendBtn {
-      background: #000;
-      color: #FFD700;
-      border: none;
-      width: 52px;
-      height: 52px;
-      border-radius: 50%;
-      margin-left: 12px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-    #chatList {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px;
-    }
-    .contact-item {
-      padding: 16px;
-      border-bottom: 1px solid #eee;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      cursor: pointer;
-      border-radius: 8px;
-      transition: background 0.2s;
-    }
-    .contact-item:hover {
-      background: #f8f9fa;
-    }
-    .contact-name {
-      font-weight: 700;
-      font-size: 16px;
-      margin-bottom: 4px;
-    }
-    .contact-status {
-      font-size: 13px;
-      color: #6c757d;
-    }
-    .contact-badge {
-      background: #28a745;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      margin-left: auto;
-    }
-    .offline { background: #6c757d; }
-    .unread-badge {
-      background: #FFD700;
-      color: #000;
-      border-radius: 12px;
-      padding: 4px 8px;
-      font-size: 12px;
-      margin-left: 8px;
-      font-weight: 700;
-    }
-    .settings-group {
-      margin-bottom: 24px;
-    }
-    .settings-label {
-      font-weight: 700;
-      margin-bottom: 12px;
-      color: #333;
-      font-size: 16px;
-    }
-    .settings-input {
-      width: 100%;
-      padding: 14px;
-      border: 2px solid #ccc;
-      border-radius: 12px;
-      font-size: 16px;
-      box-sizing: border-box;
-    }
-    .settings-input:focus {
-      border-color: #1f6feb;
-      outline: none;
-    }
-    .settings-btn {
-      background: #1f6feb;
-      color: white;
-      border: none;
-      padding: 16px;
-      border-radius: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 12px;
-      font-size: 16px;
-      box-shadow: 0 4px 12px rgba(31, 111, 235, 0.3);
-    }
-    .settings-btn:hover {
-      background: #1958c4;
-      box-shadow: 0 6px 16px rgba(31, 111, 235, 0.4);
-    }
-    .settings-info {
-      background: #f8f9fa;
-      padding: 16px;
-      border-radius: 12px;
-      font-size: 14px;
-      color: #666;
-      line-height: 1.5;
-    }
-    /* Enhanced Taxi Marker */
-    .taxi-marker {
-      background: transparent !important;
-      border: none !important;
-      box-shadow: none !important;
-    }
-  </style>
+    #menuBtn:active { transform: scale(0.95); }
 
+    /* ---------- status bar ---------- */
+    #status { 
+      position:absolute; bottom:80px; left:50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.9);
+      padding:8px 16px; border-radius:24px;
+      font-size:14px; color:#333;
+      z-index:1000; text-align:center; max-width:90%;
+      box-shadow:0 4px 12px rgba(0,0,0,0.15);
+      font-weight:600;
+    }
+    .gps-source { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; }
+    .gps-gps { background:#28a745; }
+    .gps-network { background:#17a2b8; }
+    .gps-poor { background:#ffc107; }
+
+    /* ---------- job panel ---------- */
+    #jobPanel { 
+      position:absolute; bottom:0; left:0; right:0;
+      background:white; padding:20px; border-top:2px solid #eee;
+      z-index:1000; box-shadow:0 -4px 20px rgba(0,0,0,0.1);
+      display:none;
+    }
+    #jobPanel h2 { margin:0 0 16px 0; font-size:20px; color:#1f6feb; text-align:center; }
+    #jobInfo { background:#f8f9fa; padding:16px; border-radius:12px; margin-bottom:24px; font-size:15px; line-height:1.5; }
+    /* ... keep your other CSS from the snippet as-is ... */
+
+    /* Map height fix for Leaflet */
+    html, body, #map { height:100%; margin:0; padding:0; }
+  </style>
 </head>
 <body>
+
+  <!-- Header -->
+  <div id="headerBanner">
+    <div id="appTitleContainer">
+      <div id="appTitle">Black Cab Unite</div>
+      <div id="statusCaption"><span class="status-dot status-available"></span> Online</div>
+    </div>
+    <button id="menuBtn">☰</button>
+  </div>
+
+  <!-- Map -->
+  <div id="map"></div>
+
+  <!-- Status Bar -->
+  <div id="status">GPS: <span class="gps-source gps-gps"></span> Strong</div>
+
+  <!-- Job Panel -->
+  <div id="jobPanel">
+    <h2>Current Job</h2>
+    <div id="jobInfo">No jobs assigned.</div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([51.505, -0.09], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+  </script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(() => console.log('✅ Service Worker registered'))
+        .catch(err => console.error('❌ SW registration failed:', err));
+    }
+  </script>
+</body>
+</html>
 <script>
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/service-worker.js")
