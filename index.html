@@ -8,7 +8,11 @@
   <!-- PWA -->
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#000000">
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
   <style>
+    /* ... your full CSS (unchanged) ... */
     body { 
       margin:0; 
       font-family:system-ui, -apple-system, "Segoe UI", sans-serif; 
@@ -542,7 +546,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v5.5</div>
+      <div id="appTitle">Black Cab Unite v5.4</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -643,6 +647,17 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
+    // ===== FCM: Background Message Handler (MUST be top-level) =====
+    firebase.messaging().onBackgroundMessage((payload) => {
+      const notificationTitle = payload.notification?.title || '🚕 New Job';
+      const notificationOptions = {
+        body: payload.notification?.body || 'Tap to view job details',
+        icon: '/icon-192.png',
+        data: payload.data || {}
+      };
+      return self.registration.showNotification(notificationTitle, notificationOptions);
+    });
+
     // ===== PWA: Service Worker & Install Prompt =====
     let deferredPrompt;
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -658,6 +673,37 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      // ===== FIREBASE INIT =====
+      const firebaseConfig = {
+        apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
+        authDomain: "cabunite.firebaseapp.com",
+        projectId: "cabunite",
+        storageBucket: "cabunite.firebasestorage.app",
+        messagingSenderId: "997924656033",
+        appId: "1:997924656033:web:1552b9f26a1af0878eb1e0"
+      };
+      firebase.initializeApp(firebaseConfig);
+      const messaging = firebase.messaging();
+
+      // ===== FCM: Request Permission & Get Token =====
+      async function requestFCMToken() {
+        try {
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            console.warn('Notification permission denied');
+            return null;
+          }
+          const token = await messaging.getToken({
+            vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow"
+          });
+          console.log('FCM Token:', token);
+          return token;
+        } catch (err) {
+          console.error('FCM token error:', err);
+          return null;
+        }
+      }
+
       // ===== Driver Registration =====
       let DRIVER_ID = localStorage.getItem('driver_id');
       function validateDriverId(id) {
@@ -674,40 +720,7 @@
         }
         localStorage.setItem('driver_id', DRIVER_ID);
       }
-      // ===== Driver Presence =====
       let driverPresence = localStorage.getItem('driver_presence') || 'available';
-
-      // ===== PERSISTENT WAKE LOCK =====
-      let wakeLock = null;
-
-      async function requestPersistentWakeLock() {
-        if (driverPresence === 'offline' || wakeLock) return;
-        if ('wakeLock' in navigator) {
-          try {
-            wakeLock = await navigator.wakeLock.request('screen');
-            wakeLock.addEventListener('release', () => { wakeLock = null; });
-            console.log('✅ Persistent Wake Lock acquired');
-          } catch (err) {
-            console.warn('Persistent Wake Lock failed:', err);
-          }
-        }
-      }
-
-      function releasePersistentWakeLock() {
-        if (wakeLock) {
-          wakeLock.release();
-          wakeLock = null;
-        }
-      }
-
-      // Re-acquire on tab return
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && driverPresence !== 'offline') {
-          requestPersistentWakeLock();
-        }
-      });
-
-      // ===== TTS INITIALIZER =====
       let ttsInitialized = false;
       function initTTS() {
         if (ttsInitialized || !('speechSynthesis' in window)) return;
@@ -719,7 +732,6 @@
       document.body.addEventListener('click', initTTS, { once: true });
       document.body.addEventListener('touchstart', initTTS, { once: true });
 
-      // ✅ KEEP 8884 AS REQUESTED (tablet compatibility)
       const MQTT_BROKER = "wss://broker.hivemq.com:8884/mqtt";
       const REQUEST_TOPIC = "pubs/requests/+";
       const LOCATION_TOPIC = `drivers/${DRIVER_ID}/location`;
@@ -739,6 +751,7 @@
       let isMenuOpen = false;
       let currentView = 'currentJob';
       let gpsWatchId = null;
+      let wakeLock = null;
       const otherDrivers = {};
       const driverStatus = {};
       const chatMessages = { group: JSON.parse(localStorage.getItem(`chat_group_${DRIVER_ID}`)) || [] };
@@ -787,12 +800,10 @@
         });
       }
 
-      // ===== SAVE PENDING JOBS =====
       function savePendingJobs() {
         localStorage.setItem(`pending_jobs_${DRIVER_ID}`, JSON.stringify(pendingJobs));
       }
 
-      // ===== SIMPLE GPS (STABLE) =====
       function calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371000;
         const φ1 = (lat1 * Math.PI) / 180;
@@ -836,7 +847,23 @@
         }
       }
 
-      // ===== MAP INIT =====
+      async function requestWakeLock() {
+        try {
+          if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+          }
+        } catch (err) {
+          console.warn('Wake Lock failed:', err);
+        }
+      }
+
+      function releaseWakeLock() {
+        if (wakeLock) {
+          wakeLock.release();
+          wakeLock = null;
+        }
+      }
+
       function initMapImmediately() {
         loadingOverlay.style.display = 'none';
         const defaultCenter = [52.4068, -1.5197];
@@ -853,7 +880,6 @@
         initGPS();
       }
 
-      // ===== SIMPLE GPS INIT =====
       function initGPS() {
         if (!('geolocation' in navigator)) {
           alert("Geolocation not supported.");
@@ -862,7 +888,7 @@
           return;
         }
         statusEl.innerHTML = '<span class="gps-source gps-poor"></span>Searching for GPS...';
-        requestPersistentWakeLock(); // ✅ Use persistent wake lock
+        requestWakeLock();
         gpsWatchId = navigator.geolocation.watchPosition(
           pos => {
             const gpsData = {
@@ -898,7 +924,6 @@
         connectMQTT();
       }
 
-      // ===== MENU NAVIGATION =====
       function toggleMenu() {
         isMenuOpen = !isMenuOpen;
         if (isMenuOpen) {
@@ -934,7 +959,6 @@
         }
       }
 
-      // ===== CURRENT JOB VIEW WITH NAV/CALL =====
       function renderCurrentJob() {
         const allocatedJobs = driverJobs.filter(job => job.status === 'allocated');
         if (allocatedJobs.length === 0) {
@@ -997,7 +1021,6 @@
         });
       }
 
-      // ===== JOB HISTORY MANAGEMENT =====
       function saveJobs() {
         localStorage.setItem(`driver_jobs_${DRIVER_ID}`, JSON.stringify(driverJobs));
       }
@@ -1080,7 +1103,6 @@
         attachSwipeToDelete();
       }
 
-      // ===== SWIPE-TO-DELETE FUNCTION =====
       function attachSwipeToDelete() {
         const items = document.querySelectorAll('#jobHistoryContent .job-item');
         items.forEach(item => {
@@ -1141,7 +1163,6 @@
         });
       }
 
-      // ===== CHAT FUNCTIONS =====
       function renderChatView() {
         menuContent.innerHTML = `
           <div id="chatContent" style="height:100%; display:flex; flex-direction:column;">
@@ -1279,7 +1300,6 @@
         localStorage.setItem(`chat_group_${DRIVER_ID}`, JSON.stringify(chatMessages.group || []));
       }
 
-      // ===== SETTINGS VIEW =====
       function renderSettingsView() {
         menuContent.innerHTML = `
           <div class="settings-group">
@@ -1343,7 +1363,6 @@
         });
       }
 
-      // ===== MARK JOB COMPLETED =====
       window.markJobCompleted = function(jobId) {
         const payload = { job: jobId, driver: DRIVER_ID, status: "completed", ts: Date.now() };
         client.publish(`jobs/${jobId}/status`, JSON.stringify(payload));
@@ -1351,7 +1370,6 @@
         statusEl.innerHTML = '<span class="gps-source gps-gps"></span>✅ Job marked as completed';
       };
 
-      // ===== GET COLOR FOR DRIVER =====
       function getColorForDriver(driverId) {
         let hash = 0;
         for (let i = 0; i < driverId.length; i++) {
@@ -1361,7 +1379,6 @@
         return "#" + "00000".substring(0, 6 - c.length) + c;
       }
 
-      // ===== VOICE LISTENER WITH MIC INDICATOR =====
       let speechRecognition = null;
       let retryCount = 0;
       const MAX_RETRIES = 5;
@@ -1444,7 +1461,6 @@
         speechSynthesis.speak(utterance);
       }
 
-      // ===== STRICT FIFO JOB QUEUE =====
       function processNextJob() {
         if (isJobActive || pendingJobs.length === 0 || driverPresence !== 'available') return;
         const job = pendingJobs.shift();
@@ -1507,9 +1523,8 @@
           }, 1000);
           startVoiceListener();
         }
-        // Job-specific wake lock (optional, but safe)
         async function requestJobWakeLock() {
-          if ('wakeLock' in navigator && !wakeLock) {
+          if ('wakeLock' in navigator) {
             try {
               jobWakeLock = await navigator.wakeLock.request('screen');
               jobWakeLock.addEventListener('release', () => { jobWakeLock = null; });
@@ -1561,10 +1576,8 @@
         processNextJob();
       }
 
-      // ===== DRIVER PRESENCE MANAGEMENT =====
       function setDriverPresence(status) {
         if (!['available', 'busy', 'offline'].includes(status)) return;
-        const wasOffline = (driverPresence === 'offline');
         driverPresence = status;
         localStorage.setItem('driver_presence', status);
         const caption = document.getElementById('statusCaption');
@@ -1573,19 +1586,11 @@
           <span class="status-dot"></span> 
           ${status.charAt(0).toUpperCase() + status.slice(1)}
         `;
-        if (status === 'offline') {
-          releasePersistentWakeLock();
-          if (gpsWatchId) {
-            navigator.geolocation.clearWatch(gpsWatchId);
-            gpsWatchId = null;
-          }
-        } else {
-          if (!gpsWatchId) {
-            initGPS();
-          }
-          if (wasOffline) {
-            requestPersistentWakeLock();
-          }
+        if (status === 'offline' && gpsWatchId) {
+          navigator.geolocation.clearWatch(gpsWatchId);
+          gpsWatchId = null;
+        } else if (status !== 'offline' && !gpsWatchId) {
+          initGPS();
         }
       }
 
@@ -1595,7 +1600,6 @@
         statusEl.innerHTML = '<span class="gps-source gps-poor"></span>✅ You are now logged off (offline)';
       }
 
-      // ===== MQTT =====
       function connectMQTT() {
         statusEl.innerHTML = `<span class="gps-source gps-poor"></span>Connecting to MQTT as: ${DRIVER_ID}`;
         client = mqtt.connect(MQTT_BROKER, {
@@ -1791,6 +1795,13 @@
           switchView(view);
         });
       });
+
+      // ===== REQUEST FCM TOKEN AFTER INIT =====
+      if ('serviceWorker' in navigator && 'Notification' in window) {
+        setTimeout(() => {
+          requestFCMToken();
+        }, 3000);
+      }
 
       // Initialize map immediately
       initMapImmediately();
