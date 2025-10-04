@@ -659,14 +659,14 @@
 
     // ===== FCM: BACKGROUND NOTIFICATIONS =====
     firebase.messaging().onBackgroundMessage((payload) => {
-      const notificationTitle = payload.notification?.title || '🚕 New Job';
-      const notificationOptions = {
-        body: payload.notification?.body || 'Tap to view job details',
-        icon: '/icon-192.png',
-         payload.data || {}
-      };
-      return self.registration.showNotification(notificationTitle, notificationOptions);
-    });
+  const notificationTitle = payload.notification?.title || '🚕 New Job';
+  const notificationOptions = {
+    body: payload.notification?.body || 'Tap to view job details',
+    icon: '/icon-192.png',
+    data: payload.data || {}  // ✅ CORRECT: "data:" property
+  };
+  return self.registration.showNotification(notificationTitle, notificationOptions);
+});
 
     // ===== PWA: Service Worker & Install Prompt =====
     let deferredPrompt;
@@ -1802,3 +1802,4 @@
   </script>
 </body>
 </html>
+
