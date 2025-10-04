@@ -674,12 +674,12 @@
       e.preventDefault();
       deferredPrompt = e;
     });
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js')
-          .then(reg => console.log('✅ SW registered:', reg.scope))
-          .catch(err => console.error('❌ SW failed:', err));
-      });
+   if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./firebase-messaging-sw.js')
+        .then(reg => console.log('✅ Firebase SW registered:', reg.scope))
+        .catch(err => console.error('❌ Firebase SW failed:', err));
+    });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -1802,4 +1802,5 @@
   </script>
 </body>
 </html>
+
 
