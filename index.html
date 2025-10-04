@@ -647,7 +647,7 @@
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
     // ===== FIREBASE INIT (TOP-LEVEL) =====
-    const firebaseConfig = {
+   const firebaseConfig = {
       apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
       authDomain: "cabunite.firebaseapp.com",
       projectId: "cabunite",
@@ -657,29 +657,32 @@
     };
     firebase.initializeApp(firebaseConfig);
 
-    // ===== FCM: BACKGROUND NOTIFICATIONS =====
-    firebase.messaging().onBackgroundMessage((payload) => {
-  const notificationTitle = payload.notification?.title || '🚕 New Job';
-  const notificationOptions = {
-    body: payload.notification?.body || 'Tap to view job details',
-    icon: '/icon-192.png',
-    data: payload.data || {}  // ✅ CORRECT: "data:" property
-  };
-  return self.registration.showNotification(notificationTitle, notificationOptions);
-});
-    }
+    // ===== FCM: FOREGROUND NOTIFICATIONS =====
+    const messaging = firebase.messaging();
+
+    messaging.onMessage((payload) => {
+      console.log("📩 Foreground message:", payload);
+
+      new Notification(payload.notification?.title || "🚕 New Job", {
+        body: payload.notification?.body || "Tap to view job details",
+        icon: "/icon-192.png",
+        data: payload.data || {}
+      });
+    });
+
     // ===== PWA: Service Worker & Install Prompt =====
     let deferredPrompt;
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
     });
-   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./firebase-messaging-sw.js')
-        .then(reg => console.log('✅ Firebase SW registered:', reg.scope))
-        .catch(err => console.error('❌ Firebase SW failed:', err));
-    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./firebase-messaging-sw.js')
+          .then(reg => console.log('✅ Firebase SW registered:', reg.scope))
+          .catch(err => console.error('❌ Firebase SW failed:', err));
+      });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -1802,6 +1805,7 @@
   </script>
 </body>
 </html>
+
 
 
 
