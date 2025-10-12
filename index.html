@@ -1145,7 +1145,7 @@
       }
       // ===== CHAT FUNCTIONS =====
 function renderChatView() {
-  // ✅ Ensure a default chat is selected
+  // ✅ Auto-select group chat if none is active
   if (!currentChat) {
     currentChat = 'group';
     unreadCounts.group = 0;
@@ -1165,21 +1165,35 @@ function renderChatView() {
         </div>
       </div>
       <div id="chatMessages" style="flex:1; padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:12px;"></div>
-      <div id="chatInputContainer" style="padding:12px; background:white; border-top:1px solid #eee;">
+      <div id="chatInputContainer" style="padding:12px; background:white; border-top:1px solid #eee; display:none;">
         <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off" style="flex:1; padding:14px; border:2px solid #ddd; border-radius:24px; font-size:16px;">
         <button id="sendBtn" style="background:#000; color:#FFD700; border:none; width:52px; height:52px; border-radius:50%; margin-left:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:20px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">➤</button>
       </div>
     </div>
   `;
 
-  // Prevent menu close on contact click
+  // Chat list click handler
   document.getElementById('chatList').addEventListener('click', (e) => {
     const contact = e.target.closest('.contact-item');
     if (contact) {
       e.stopPropagation();
-      const chatId = contact.dataset.chat;
-      openChat(chatId);
+      openChat(contact.dataset.chat);
     }
+  });
+
+  // Send message handlers
+  const sendBtn = document.getElementById('sendBtn');
+  const chatInput = document.getElementById('chatInput');
+  if (sendBtn) sendBtn.addEventListener('click', sendChatMessage);
+  if (chatInput) {
+    chatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendChatMessage();
+    });
+  }
+
+  // ✅ Immediately open the group chat
+  openChat('group');
+}
   });
 
   document.getElementById('sendBtn').addEventListener('click', sendChatMessage);
@@ -1200,24 +1214,33 @@ function renderChatView() {
         renderChatMessages();
         document.getElementById('chatInput').focus();
       }
-      function renderChatMessages() {
-        const chatMessagesEl = document.getElementById('chatMessages');
-        chatMessagesEl.innerHTML = '';
-        const messages = chatMessages[currentChat] || [];
-        messages.forEach(msg => {
-          const messageEl = document.createElement('div');
-          messageEl.className = `message ${msg.sender === DRIVER_ID ? 'sent' : 'received'}`;
-          messageEl.innerHTML = `
-            ${msg.text}
-            <div class="message-info">
-              <span>${msg.sender}</span>
-              <span>${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-            </div>
-          `;
-          chatMessagesEl.appendChild(messageEl);
-        });
-        chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-      }
+ function renderChatMessages() {
+  const chatMessagesEl = document.getElementById('chatMessages');
+  if (!chatMessagesEl) return;
+
+  chatMessagesEl.innerHTML = '';
+  const messages = chatMessages[currentChat] || [];
+  messages.forEach(msg => {
+    // 🔒 Safeguard against missing properties
+    const text = msg.text ?? '[No message]';
+    const sender = msg.sender ?? 'unknown';
+    const time = msg.timestamp 
+      ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : '--:--';
+
+    const messageEl = document.createElement('div');
+    messageEl.className = `message ${sender === DRIVER_ID ? 'sent' : 'received'}`;
+    messageEl.innerHTML = `
+      ${text}
+      <div class="message-info">
+        <span>${sender}</span>
+        <span>${time}</span>
+      </div>
+    `;
+    chatMessagesEl.appendChild(messageEl);
+  });
+  chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+}
       function updateChatList() {
         const chatList = document.getElementById('chatList');
         if (!chatList) return;
@@ -1817,6 +1840,7 @@ function renderChatView() {
   </script>
 </body>
 </html>
+
 
 
 
