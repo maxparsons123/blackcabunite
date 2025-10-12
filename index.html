@@ -663,7 +663,7 @@
       new Notification(payload.notification?.title || "🚕 New Job", {
         body: payload.notification?.body || "Tap to view job details",
         icon: "/icon-192.png",
-         payload.data || {}
+        data: payload.data || {} 
       });
     });
     // ===== PWA: Service Worker & Install Prompt =====
@@ -1840,3 +1840,4 @@
   </script>
 </body>
 </html>
+
