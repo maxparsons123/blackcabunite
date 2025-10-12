@@ -646,7 +646,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
-    // ===== FIREBASE INIT (TOP-LEVEL) =====
+  // ===== FIREBASE INIT =====
     const firebaseConfig = {
       apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
       authDomain: "cabunite.firebaseapp.com",
@@ -656,32 +656,28 @@
       appId: "1:997924656033:web:1552b9f26a1af0878eb1e0"
     };
     firebase.initializeApp(firebaseConfig);
-    // ===== FCM: FOREGROUND NOTIFICATIONS =====
     const messaging = firebase.messaging();
+
+    // ===== FCM: Foreground Notifications =====
     messaging.onMessage((payload) => {
-      console.log("📩 Foreground message:", payload);
       new Notification(payload.notification?.title || "🚕 New Job", {
         body: payload.notification?.body || "Tap to view job details",
         icon: "/icon-192.png",
-        data: payload.data || {} 
+        data: payload.data || {}
       });
     });
-    // ===== PWA: Service Worker & Install Prompt =====
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-    });
-    // ✅ FIXED: SERVICE WORKER REGISTRATION FOR GITHUB PAGES
+
+    // ✅ FIXED: SERVICE WORKER FOR GITHUB PAGES
+    let swRegistration = null;
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', async () => {
         try {
-          const swReg = await navigator.serviceWorker.register('./firebase-messaging-sw.js', {
+          // Register SW in subdirectory
+          swRegistration = await navigator.serviceWorker.register('./firebase-messaging-sw.js', {
             scope: './'
           });
-          console.log('✅ Firebase SW registered:', swReg.scope);
-          // 🔑 CRITICAL: Tell Firebase to use this SW
-          firebase.messaging().useServiceWorker(swReg);
+          console.log('✅ Firebase SW registered:', swRegistration.scope);
+          // 🔥 DO NOT use firebase.messaging().useServiceWorker() — it doesn't exist in compat!
         } catch (err) {
           console.error('❌ Firebase SW failed:', err);
         }
@@ -1813,13 +1809,22 @@
           switchView(view);
         });
       });
-      // ===== FCM TOKEN REQUEST =====
+ // ===== FCM TOKEN REQUEST (FIXED) =====
       async function requestFCMToken() {
         try {
           const permission = await Notification.requestPermission();
           if (permission !== 'granted') return null;
-          const token = await firebase.messaging().getToken({
-            vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow"
+
+          // ✅ Get active SW registration
+          const registration = swRegistration || await navigator.serviceWorker.getRegistration('./');
+          if (!registration) {
+            console.warn("No service worker registration found.");
+            return null;
+          }
+
+          const token = await messaging.getToken({
+            vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
+            serviceWorkerRegistration: registration // ✅ Critical for subdirectories
           });
           console.log('FCM Token:', token);
           return token;
@@ -1828,11 +1833,9 @@
           return null;
         }
       }
-      // Request FCM token after init
+
       if ('serviceWorker' in navigator && 'Notification' in window) {
-        setTimeout(() => {
-          requestFCMToken();
-        }, 3000);
+        setTimeout(() => requestFCMToken(), 3000);
       }
       // Initialize map immediately (no delay)
       initMapImmediately();
@@ -1840,4 +1843,5 @@
   </script>
 </body>
 </html>
+
 
