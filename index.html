@@ -1143,9 +1143,9 @@
           item.addEventListener('selectstart', e => e.preventDefault());
         });
       }
-      // ===== CHAT FUNCTIONS =====
+   // ===== CHAT FUNCTIONS =====
 function renderChatView() {
-  // ✅ Auto-select group chat if none is active
+  // Auto-select group chat if none is active
   if (!currentChat) {
     currentChat = 'group';
     unreadCounts.group = 0;
@@ -1164,7 +1164,7 @@ function renderChatView() {
           ${unreadCounts.group > 0 ? `<div class="unread-badge">${unreadCounts.group}</div>` : ''}
         </div>
       </div>
-      <div id="chatMessages" style="flex:1; padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:12px;"></div>
+      <div id="chatMessages" style="flex:1; padding:16px; overflow-y:auto; display:none; flex-direction:column; gap:12px;"></div>
       <div id="chatInputContainer" style="padding:12px; background:white; border-top:1px solid #eee; display:none;">
         <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off" style="flex:1; padding:14px; border:2px solid #ddd; border-radius:24px; font-size:16px;">
         <button id="sendBtn" style="background:#000; color:#FFD700; border:none; width:52px; height:52px; border-radius:50%; margin-left:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:20px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">➤</button>
@@ -1173,58 +1173,65 @@ function renderChatView() {
   `;
 
   // Chat list click handler
-  document.getElementById('chatList').addEventListener('click', (e) => {
-    const contact = e.target.closest('.contact-item');
-    if (contact) {
-      e.stopPropagation();
-      openChat(contact.dataset.chat);
-    }
-  });
-
-  // Send message handlers
-  const sendBtn = document.getElementById('sendBtn');
-  const chatInput = document.getElementById('chatInput');
-  if (sendBtn) sendBtn.addEventListener('click', sendChatMessage);
-  if (chatInput) {
-    chatInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') sendChatMessage();
+  const chatListEl = document.getElementById('chatList');
+  if (chatListEl) {
+    chatListEl.addEventListener('click', (e) => {
+      const contact = e.target.closest('.contact-item');
+      if (contact) {
+        e.stopPropagation();
+        openChat(contact.dataset.chat);
+      }
     });
   }
 
-  // ✅ Immediately open the group chat
+  // Immediately open group chat
   openChat('group');
 }
-  });
 
-  document.getElementById('sendBtn').addEventListener('click', sendChatMessage);
-  document.getElementById('chatInput').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendChatMessage();
-  });
+function openChat(chatId) {
+  currentChat = chatId;
 
-  // ✅ Render messages for the current (or default) chat
-  openChat(currentChat);
+  const chatList = document.getElementById('chatList');
+  const chatMessages = document.getElementById('chatMessages');
+  const chatInputContainer = document.getElementById('chatInputContainer');
+
+  if (chatList) chatList.style.display = 'none';
+  if (chatMessages) chatMessages.style.display = 'flex';
+  if (chatInputContainer) chatInputContainer.style.display = 'flex';
+
+  // Reset unread count
+  unreadCounts[chatId] = 0;
+  updateChatList();
+  renderChatMessages();
+
+  const chatInput = document.getElementById('chatInput');
+  if (chatInput) chatInput.focus();
+
+  // Attach input handlers only once (inside openChat to ensure elements exist)
+  const sendBtn = document.getElementById('sendBtn');
+  if (sendBtn) {
+    // Remove previous listeners if any (optional safety)
+    sendBtn.onclick = sendChatMessage;
+  }
+  if (chatInput) {
+    chatInput.onkeypress = (e) => {
+      if (e.key === 'Enter') sendChatMessage();
+    };
+  }
 }
-      function openChat(chatId) {
-        currentChat = chatId;
-        document.getElementById('chatList').style.display = 'none';
-        document.getElementById('chatMessages').style.display = 'flex';
-        document.getElementById('chatInputContainer').style.display = 'flex';
-        unreadCounts[chatId] = 0;
-        updateChatList();
-        renderChatMessages();
-        document.getElementById('chatInput').focus();
-      }
- function renderChatMessages() {
+
+function renderChatMessages() {
   const chatMessagesEl = document.getElementById('chatMessages');
   if (!chatMessagesEl) return;
 
   chatMessagesEl.innerHTML = '';
   const messages = chatMessages[currentChat] || [];
+
   messages.forEach(msg => {
-    // 🔒 Safeguard against missing properties
-    const text = msg.text ?? '[No message]';
-    const sender = msg.sender ?? 'unknown';
-    const time = msg.timestamp 
+    // 🔒 Guard against missing fields
+    const text = typeof msg.text === 'string' ? msg.text : '[No message]';
+    const sender = typeof msg.sender === 'string' ? msg.sender : 'unknown';
+    const time = msg.timestamp
       ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : '--:--';
 
@@ -1239,76 +1246,99 @@ function renderChatView() {
     `;
     chatMessagesEl.appendChild(messageEl);
   });
+
   chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
 }
-      function updateChatList() {
-        const chatList = document.getElementById('chatList');
-        if (!chatList) return;
-        let html = `
-          <div class="contact-item" data-chat="group">
-            <div class="other-driver-icon" style="background:#6f42c1;">GC</div>
-            <div>
-              <div class="contact-name">Group Chat</div>
-              <div class="contact-status">All drivers</div>
-            </div>
-            ${unreadCounts.group > 0 ? `<div class="unread-badge">${unreadCounts.group}</div>` : ''}
-          </div>
-        `;
-        Object.keys(otherDrivers).forEach(driverId => {
-          const isOnline = (Date.now() - (driverStatus[driverId] || 0)) < 60000;
-          const color = getColorForDriver(driverId);
-          const unread = unreadCounts[driverId] || 0;
-          html += `
-            <div class="contact-item" data-chat="${driverId}">
-              <div class="other-driver-icon" style="background:${color}">${driverId.substring(0,2).toUpperCase()}</div>
-              <div>
-                <div class="contact-name">${driverId}</div>
-                <div class="contact-status">${isOnline ? 'Online' : 'Offline'}</div>
-              </div>
-              ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
-            </div>
-          `;
-        });
-        chatList.innerHTML = html;
-      }
-      function sendChatMessage() {
-        const chatInput = document.getElementById('chatInput');
-        const text = chatInput.value.trim();
-        if (!text || !currentChat) return;
-        if (currentChat === 'group') {
-          const payload = { sender: DRIVER_ID, text, timestamp: Date.now() };
-          client.publish(CHAT_GROUP_TOPIC, JSON.stringify(payload));
-        } else {
-          const payload = { sender: DRIVER_ID, text, timestamp: Date.now() };
-          client.publish(`chat/private/${currentChat}/${DRIVER_ID}`, JSON.stringify(payload));
-        }
-        addMessage(currentChat, DRIVER_ID, text);
-        chatInput.value = '';
-      }
-      function addMessage(chatId, sender, text, timestamp = Date.now()) {
-        if (!chatMessages[chatId]) {
-          chatMessages[chatId] = [];
-          unreadCounts[chatId] = 0;
-        }
-        chatMessages[chatId].push({ sender, text, timestamp });
-        if (chatMessages[chatId].length > 50) {
-          chatMessages[chatId] = chatMessages[chatId].slice(-50);
-        }
-        if (!isMenuOpen || currentView !== 'chat' || currentChat !== chatId) {
-          unreadCounts[chatId] = (unreadCounts[chatId] || 0) + 1;
-        }
-        saveChatMessages();
-        updateChatList();
-        if (isMenuOpen && currentView === 'chat' && currentChat === chatId) {
-          renderChatMessages();
-        }
-      }
-      function saveChatMessages() {
-        if (currentChat) {
-          localStorage.setItem(`chat_${currentChat}_${DRIVER_ID}`, JSON.stringify(chatMessages[currentChat] || []));
-        }
-        localStorage.setItem(`chat_group_${DRIVER_ID}`, JSON.stringify(chatMessages.group || []));
-      }
+
+function updateChatList() {
+  const chatList = document.getElementById('chatList');
+  if (!chatList) return;
+
+  let html = `
+    <div class="contact-item" data-chat="group">
+      <div class="other-driver-icon" style="background:#6f42c1;">GC</div>
+      <div>
+        <div class="contact-name">Group Chat</div>
+        <div class="contact-status">All drivers</div>
+      </div>
+      ${unreadCounts.group > 0 ? `<div class="unread-badge">${unreadCounts.group}</div>` : ''}
+    </div>
+  `;
+
+  Object.keys(otherDrivers).forEach(driverId => {
+    const isOnline = (Date.now() - (driverStatus[driverId] || 0)) < 60000;
+    const color = getColorForDriver(driverId);
+    const unread = unreadCounts[driverId] || 0;
+    html += `
+      <div class="contact-item" data-chat="${driverId}">
+        <div class="other-driver-icon" style="background:${color}">${driverId.substring(0,2).toUpperCase()}</div>
+        <div>
+          <div class="contact-name">${driverId}</div>
+          <div class="contact-status">${isOnline ? 'Online' : 'Offline'}</div>
+        </div>
+        ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
+      </div>
+    `;
+  });
+
+  chatList.innerHTML = html;
+}
+
+function sendChatMessage() {
+  const chatInput = document.getElementById('chatInput');
+  if (!chatInput || !currentChat) return;
+
+  const text = chatInput.value.trim();
+  if (!text) return;
+
+  const payload = { sender: DRIVER_ID, text, timestamp: Date.now() };
+
+  if (currentChat === 'group') {
+    client.publish(CHAT_GROUP_TOPIC, JSON.stringify(payload));
+  } else {
+    client.publish(`chat/private/${currentChat}/${DRIVER_ID}`, JSON.stringify(payload));
+  }
+
+  addMessage(currentChat, DRIVER_ID, text);
+  chatInput.value = '';
+}
+
+function addMessage(chatId, sender, text, timestamp = Date.now()) {
+  if (!chatMessages[chatId]) {
+    chatMessages[chatId] = [];
+    unreadCounts[chatId] = 0;
+  }
+
+  chatMessages[chatId].push({ sender, text, timestamp });
+
+  // Keep only last 50 messages
+  if (chatMessages[chatId].length > 50) {
+    chatMessages[chatId] = chatMessages[chatId].slice(-50);
+  }
+
+  // Increment unread if not viewing this chat
+  if (!isMenuOpen || currentView !== 'chat' || currentChat !== chatId) {
+    unreadCounts[chatId] = (unreadCounts[chatId] || 0) + 1;
+  }
+
+  saveChatMessages();
+  updateChatList();
+
+  // Auto-render if user is in the chat
+  if (isMenuOpen && currentView === 'chat' && currentChat === chatId) {
+    renderChatMessages();
+  }
+}
+
+function saveChatMessages() {
+  // Always save group chat
+  localStorage.setItem(`chat_group_${DRIVER_ID}`, JSON.stringify(chatMessages.group || []));
+
+  // Save current chat if it's not group (optional, but safe)
+  if (currentChat && currentChat !== 'group') {
+    localStorage.setItem(`chat_${currentChat}_${DRIVER_ID}`, JSON.stringify(chatMessages[currentChat] || []));
+  }
+}
       // ===== SETTINGS VIEW =====
       function renderSettingsView() {
         menuContent.innerHTML = `
@@ -1840,6 +1870,7 @@ function renderChatView() {
   </script>
 </body>
 </html>
+
 
 
 
