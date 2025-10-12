@@ -1776,12 +1776,17 @@ function saveChatMessages() {
               }
             }
             if (topic === CHAT_GROUP_TOPIC) {
-              addMessage('group', data.sender, data.text, data.timestamp);
-            }
-            if (topic.startsWith(`chat/private/${DRIVER_ID}/`)) {
-              const sender = topic.split('/')[2];
-              addMessage(sender, data.sender, data.text, data.timestamp);
-            }
+  // ✅ Skip if it's your own message (already added locally)
+  if (data.sender !== DRIVER_ID) {
+    addMessage('group', data.sender, data.text, data.timestamp);
+  }
+}
+       if (topic.startsWith(`chat/private/${DRIVER_ID}/`)) {
+  const sender = topic.split('/')[2];
+  if (data.sender !== DRIVER_ID) {
+    addMessage(sender, data.sender, data.text, data.timestamp);
+  }
+}
             if (topic.startsWith("drivers/") && topic.endsWith("/location")) {
               const driverId = topic.split('/')[1];
               if (driverId === DRIVER_ID) return;
@@ -1870,6 +1875,7 @@ function saveChatMessages() {
   </script>
 </body>
 </html>
+
 
 
 
