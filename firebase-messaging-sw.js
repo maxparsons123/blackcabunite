@@ -20,7 +20,7 @@ firebase.messaging().onBackgroundMessage((payload) => {
   const notificationOptions = {
     body: payload.notification?.body || 'Tap to view job details',
     icon: '/icon-192.png',
-     payload.data || {}
+     data: payload.data || {}
   };
   return self.registration.showNotification(notificationTitle, notificationOptions);
 });
@@ -38,4 +38,5 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
 
