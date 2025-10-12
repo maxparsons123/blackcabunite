@@ -743,6 +743,7 @@
       let pendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${DRIVER_ID}`)) || [];
       let maxRadius = parseFloat(localStorage.getItem('max_radius_km') || '10');
       let isJobActive = false;
+      let currentChat = 'group'; // instead of null
       // ✅ GLOBAL TIMER REFERENCE (PREVENT LEAKS)
       let jobTimerInterval = null;
       // ✅ JOB WAKE LOCK
@@ -1143,41 +1144,52 @@
         });
       }
       // ===== CHAT FUNCTIONS =====
-      function renderChatView() {
-        menuContent.innerHTML = `
-          <div id="chatContent" style="height:100%; display:flex; flex-direction:column;">
-            <div id="chatList" style="flex:1; overflow-y:auto; padding:8px;">
-              <div class="contact-item" data-chat="group">
-                <div class="other-driver-icon" style="background:#6f42c1;">GC</div>
-                <div>
-                  <div class="contact-name">Group Chat</div>
-                  <div class="contact-status">All drivers</div>
-                </div>
-                ${unreadCounts.group > 0 ? `<div class="unread-badge">${unreadCounts.group}</div>` : ''}
-              </div>
-            </div>
-            <div id="chatMessages" style="flex:1; padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:12px;"></div>
-            <div id="chatInputContainer" style="padding:12px; background:white; border-top:1px solid #eee;">
-              <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off" style="flex:1; padding:14px; border:2px solid #ddd; border-radius:24px; font-size:16px;">
-              <button id="sendBtn" style="background:#000; color:#FFD700; border:none; width:52px; height:52px; border-radius:50%; margin-left:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:20px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">➤</button>
-            </div>
+     function renderChatView() {
+  // ✅ Ensure a default chat is selected
+  if (!currentChat) {
+    currentChat = 'group';
+    unreadCounts.group = 0;
+    updateChatList();
+  }
+
+  menuContent.innerHTML = `
+    <div id="chatContent" style="height:100%; display:flex; flex-direction:column;">
+      <div id="chatList" style="flex:1; overflow-y:auto; padding:8px;">
+        <div class="contact-item" data-chat="group">
+          <div class="other-driver-icon" style="background:#6f42c1;">GC</div>
+          <div>
+            <div class="contact-name">Group Chat</div>
+            <div class="contact-status">All drivers</div>
           </div>
-        `;
-        // ✅ FIX: Prevent menu close on contact click
-        document.getElementById('chatList').addEventListener('click', (e) => {
-          const contact = e.target.closest('.contact-item');
-          if (contact) {
-            e.stopPropagation();
-            const chatId = contact.dataset.chat;
-            openChat(chatId);
-          }
-        });
-        document.getElementById('sendBtn').addEventListener('click', sendChatMessage);
-        document.getElementById('chatInput').addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') sendChatMessage();
-        });
-        updateChatList();
-      }
+          ${unreadCounts.group > 0 ? `<div class="unread-badge">${unreadCounts.group}</div>` : ''}
+        </div>
+      </div>
+      <div id="chatMessages" style="flex:1; padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:12px;"></div>
+      <div id="chatInputContainer" style="padding:12px; background:white; border-top:1px solid #eee;">
+        <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off" style="flex:1; padding:14px; border:2px solid #ddd; border-radius:24px; font-size:16px;">
+        <button id="sendBtn" style="background:#000; color:#FFD700; border:none; width:52px; height:52px; border-radius:50%; margin-left:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:20px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">➤</button>
+      </div>
+    </div>
+  `;
+
+  // Prevent menu close on contact click
+  document.getElementById('chatList').addEventListener('click', (e) => {
+    const contact = e.target.closest('.contact-item');
+    if (contact) {
+      e.stopPropagation();
+      const chatId = contact.dataset.chat;
+      openChat(chatId);
+    }
+  });
+
+  document.getElementById('sendBtn').addEventListener('click', sendChatMessage);
+  document.getElementById('chatInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendChatMessage();
+  });
+
+  // ✅ Render messages for the current (or default) chat
+  openChat(currentChat);
+}
       function openChat(chatId) {
         currentChat = chatId;
         document.getElementById('chatList').style.display = 'none';
@@ -1805,7 +1817,6 @@
   </script>
 </body>
 </html>
-
 
 
 
