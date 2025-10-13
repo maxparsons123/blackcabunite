@@ -1606,85 +1606,99 @@
       }
       // ===== MQTT =====
       function connectMQTT() {
-        statusEl.innerHTML = `<span class="gps-source gps-poor"></span>Connecting to MQTT as: ${DRIVER_ID}`;
-        client = mqtt.connect(MQTT_BROKER, {
-          clientId: 'driver-' + DRIVER_ID + '-' + Math.random().toString(16).substr(2,8),
-          clean: true,
-          reconnectPeriod: 1000
-        });
-        client.on('connect', () => {
-          statusEl.innerHTML = `<span class="gps-source gps-gps"></span>Connected as: ${DRIVER_ID}`;
-          client.subscribe(REQUEST_TOPIC);
-          client.subscribe(DRIVERS_LOCATION_TOPIC);
-          client.subscribe(CHAT_GROUP_TOPIC);
-          client.subscribe(CHAT_PRIVATE_TOPIC);
-          client.subscribe(JOB_RESULT_TOPIC);
-           if (window.fcmToken) {
-    client.publish(`drivers/${DRIVER_ID}/token`, window.fcmToken);
-          // Publish initial status
-          client.publish(`drivers/${DRIVER_ID}/status`, JSON.stringify({
-            driver: DRIVER_ID,
-            status: driverPresence,
-            ts: Date.now()
-          }));
-          setInterval(cleanupOldDrivers, 30000);
-          // Auto-clean expired pending jobs
-          setInterval(() => {
-            const now = Date.now();
-            let changed = false;
-            pendingJobs = pendingJobs.filter(job => {
-              if (now - job.receivedAt >= 30000) {
-                updateJobStatus(job.job, 'expired');
-                changed = true;
-                return false;
-              }
-              return true;
-            });
-            if (changed) savePendingJobs();
-          }, 10000);
-        });
-        client.on('message', (topic, message) => {
-          try {
-            const data = JSON.parse(message.toString());
-            if (topic.startsWith("pubs/requests/")) {
-              // ✅ RESPECT DRIVER PRESENCE
-              if (driverPresence === 'offline') return;
-              // Radius filter
-              if (driverCoords) {
-                const dist = calculateDistance(driverCoords.lat, driverCoords.lng, data.lat, data.lng);
-                if (dist > maxRadius * 1000) {
-                  client.publish(`jobs/${data.job}/status`, JSON.stringify({
-                    job: data.job,
-                    driver: DRIVER_ID,
-                    status: "rejected",
-                    reason: "out_of_radius",
-                    ts: Date.now()
-                  }));
-                  addJobToHistory(data, 'rejected');
-                  return;
-                }
-              }
-              pendingJobs.push({ ...data, receivedAt: Date.now() });
-              savePendingJobs();
-              addJobToHistory(data, 'queued');
-              if (driverPresence === 'available' && !isJobActive) {
-                processNextJob();
-              } else if (driverPresence === 'busy') {
-                if ('speechSynthesis' in window) {
-                  const u = new SpeechSynthesisUtterance("New job queued. You are set to busy.");
-                  u.lang = 'en-GB';
-                  u.rate = 0.9;
-                  speechSynthesis.speak(u);
-                }
-                const btn = document.getElementById('menuBtn');
-                btn.style.transform = 'scale(1.1)';
-                btn.style.backgroundColor = '#ff6b35';
-                setTimeout(() => {
-                  btn.style.transform = '';
-                  btn.style.backgroundColor = '#FFD700';
-                }, 600);
-              }
-            }
+  statusEl.innerHTML = `<span class="gps-source gps-poor"></span>Connecting to MQTT as: ${DRIVER_ID}`;
+  client = mqtt.connect(MQTT_BROKER, {
+    clientId: 'driver-' + DRIVER_ID + '-' + Math.random().toString(16).substr(2, 8),
+    clean: true,
+    reconnectPeriod: 1000
+  });
+
+  client.on('connect', () => {
+    statusEl.innerHTML = `<span class="gps-source gps-gps"></span>Connected as: ${DRIVER_ID}`;
+
+    // Subscribe to topics
+    client.subscribe(REQUEST_TOPIC);
+    client.subscribe(DRIVERS_LOCATION_TOPIC);
+    client.subscribe(CHAT_GROUP_TOPIC);
+    client.subscribe(CHAT_PRIVATE_TOPIC);
+    client.subscribe(JOB_RESULT_TOPIC);
+
+    // ✅ Publish FCM token if available
+    if (window.fcmToken) {
+      client.publish(`drivers/${DRIVER_ID}/token`, window.fcmToken);
+    }
+
+    // Publish initial status
+    client.publish(`drivers/${DRIVER_ID}/status`, JSON.stringify({
+      driver: DRIVER_ID,
+      status: driverPresence,
+      ts: Date.now()
+    }));
+
+    // Start cleanup intervals
+    setInterval(cleanupOldDrivers, 30000);
+    setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      pendingJobs = pendingJobs.filter(job => {
+        if (now - job.receivedAt >= 30000) {
+          updateJobStatus(job.job, 'expired');
+          changed = true;
+          return false;
+        }
+        return true;
+      });
+      if (changed) savePendingJobs();
+    }, 10000);
+  });
+
+  client.on('message', (topic, message) => {
+    try {
+      const data = JSON.parse(message.toString());
+
+      if (topic.startsWith("pubs/requests/")) {
+        // ✅ RESPECT DRIVER PRESENCE
+        if (driverPresence === 'offline') return;
+
+        // Radius filter
+        if (driverCoords) {
+          const dist = calculateDistance(driverCoords.lat, driverCoords.lng, data.lat, data.lng);
+          if (dist > maxRadius * 1000) {
+            client.publish(`jobs/${data.job}/status`, JSON.stringify({
+              job: data.job,
+              driver: DRIVER_ID,
+              status: "rejected",
+              reason: "out_of_radius",
+              ts: Date.now()
+            }));
+            addJobToHistory(data, 'rejected');
+            return;
+          }
+        }
+
+        // Accept job if within radius and available
+        pendingJobs.push({ ...data, receivedAt: Date.now() });
+        savePendingJobs();
+        addJobToHistory(data, 'queued');
+
+        if (driverPresence === 'available' && !isJobActive) {
+          processNextJob();
+        } else if (driverPresence === 'busy') {
+          if ('speechSynthesis' in window) {
+            const u = new SpeechSynthesisUtterance("New job queued. You are set to busy.");
+            u.lang = 'en-GB';
+            u.rate = 0.9;
+            speechSynthesis.speak(u);
+          }
+          const btn = document.getElementById('menuBtn');
+          btn.style.transform = 'scale(1.1)';
+          btn.style.backgroundColor = '#ff6b35';
+          setTimeout(() => {
+            btn.style.transform = '';
+            btn.style.backgroundColor = '#FFD700';
+          }, 600);
+        }
+      }
             if (topic.startsWith("jobs/") && topic.endsWith(`/result/${DRIVER_ID}`)) {
               const jobId = topic.split('/')[1];
               if (data.result === "won") {
@@ -1856,6 +1870,7 @@
   </script>
 </body>
 </html>
+
 
 
 
