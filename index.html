@@ -1831,6 +1831,12 @@ async function requestFCMToken() {
       serviceWorkerRegistration: registration // ✅ Critical for subdirectories
     });
     console.log('FCM Token:', token);
+        if (client && client.connected) {
+      client.publish(`drivers/${DRIVER_ID}/token`, token);
+    } else {
+      // Store for later publishing when MQTT connects
+      window.fcmToken = token;
+    }
     return token;
   } catch (err) {
     console.error('FCM token error:', err);
@@ -1846,5 +1852,6 @@ async function requestFCMToken() {
   </script>
 </body>
 </html>
+
 
 
