@@ -1620,7 +1620,7 @@ if ('serviceWorker' in navigator) {
           client.subscribe(JOB_RESULT_TOPIC);
           // ✅ Publish FCM token if available
           if (window.fcmToken) {
-            client.publish(`drivers/${DRIVER_ID}/token`, window.fcmToken);
+            client.publish(`drivers/${DRIVER_ID}/token`, JSON.stringify({ token }));
           }
           // Publish initial status
           client.publish(`drivers/${DRIVER_ID}/status`, JSON.stringify({
@@ -1832,7 +1832,7 @@ async function requestFCMToken() {
     });
     console.log('FCM Token:', token);
         if (client && client.connected) {
-      client.publish(`drivers/${DRIVER_ID}/token`, token);
+ client.publish(`drivers/${DRIVER_ID}/token`, JSON.stringify({ token }));
     } else {
       // Store for later publishing when MQTT connects
       window.fcmToken = token;
@@ -1852,6 +1852,7 @@ async function requestFCMToken() {
   </script>
 </body>
 </html>
+
 
 
 
