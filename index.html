@@ -662,7 +662,7 @@
       new Notification(payload.notification?.title || "🚕 New Job", {
         body: payload.notification?.body || "Tap to view job details",
         icon: "/icon-192.png",
-         payload.data || {}
+       data: payload.data || {}
       });
     });
     // ✅ FIXED: SERVICE WORKER FOR GITHUB PAGES
@@ -1838,3 +1838,4 @@
   </script>
 </body>
 </html>
+
