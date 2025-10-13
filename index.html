@@ -1619,6 +1619,8 @@
           client.subscribe(CHAT_GROUP_TOPIC);
           client.subscribe(CHAT_PRIVATE_TOPIC);
           client.subscribe(JOB_RESULT_TOPIC);
+           if (window.fcmToken) {
+    client.publish(`drivers/${DRIVER_ID}/token`, window.fcmToken);
           // Publish initial status
           client.publish(`drivers/${DRIVER_ID}/status`, JSON.stringify({
             driver: DRIVER_ID,
@@ -1817,6 +1819,7 @@
     
     const token = await messaging.getToken({
       vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow"
+      window.fcmToken = token;
     });
     
     console.log('FCM Token:', token);
@@ -1853,6 +1856,7 @@
   </script>
 </body>
 </html>
+
 
 
 
