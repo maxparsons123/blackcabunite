@@ -667,18 +667,21 @@
     });
     // ✅ FIXED: SERVICE WORKER FOR GITHUB PAGES
     let swRegistration = null;
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', async () => {
-        try {
-          swRegistration = await navigator.serviceWorker.register('./firebase-messaging-sw.js', {
-            scope: './'
-          });
-          console.log('✅ Firebase SW registered:', swRegistration.scope);
-        } catch (err) {
-          console.error('❌ Firebase SW failed:', err);
-        }
-      });
+// ===== SERVICE WORKER FOR GITHUB PAGES =====
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      // ✅ Register SW in your subdirectory with correct scope
+      const swRegistration = await navigator.serviceWorker.register(
+        './firebase-messaging-sw.js',
+        { scope: './' }
+      );
+      console.log('✅ Firebase SW registered:', swRegistration.scope);
+    } catch (err) {
+      console.error('❌ Firebase SW failed:', err);
     }
+  });
+}
     document.addEventListener('DOMContentLoaded', () => {
       // ===== Driver Registration =====
       let DRIVER_ID = localStorage.getItem('driver_id');
@@ -1810,25 +1813,30 @@
         });
       });
       // ===== FCM TOKEN REQUEST =====
-      async function requestFCMToken() {
-        try {
-          const permission = await Notification.requestPermission();
-          if (permission !== 'granted') return null;
-          const token = await messaging.getToken({
-            vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow"
-          });
-          console.log('FCM Token:', token);
-          window.fcmToken = token; // ✅ Store globally
-          // ✅ Publish token to MQTT
-          if (client && client.connected) {
-            client.publish(`drivers/${DRIVER_ID}/token`, token);
-          }
-          return token;
-        } catch (err) {
-          console.error('FCM token error:', err);
-          return null;
-        }
-      }
+async function requestFCMToken() {
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return null;
+
+    // ✅ Get active SW registration
+    const registration = await navigator.serviceWorker.getRegistration('./');
+    if (!registration) {
+      console.warn("No service worker registration found.");
+      return null;
+    }
+
+    // ✅ Use registration in getToken()
+    const token = await firebase.messaging().getToken({
+      vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
+      serviceWorkerRegistration: registration // ✅ Critical for subdirectories
+    });
+    console.log('FCM Token:', token);
+    return token;
+  } catch (err) {
+    console.error('FCM token error:', err);
+    return null;
+  }
+}
       if ('serviceWorker' in navigator && 'Notification' in window) {
         setTimeout(() => requestFCMToken(), 3000);
       }
@@ -1838,4 +1846,5 @@
   </script>
 </body>
 </html>
+
 
