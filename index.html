@@ -1635,12 +1635,12 @@ if ('serviceWorker' in navigator) {
           client.subscribe(CHAT_PRIVATE_TOPIC);
           client.subscribe(JOB_RESULT_TOPIC);
           // ✅ v6.2: Publish FCM token WITH driverId in payload
-          if (window.fcmToken) {
-            client.publish(`drivers/${DRIVER_ID}/token`, JSON.stringify({ 
-              driverId: DRIVER_ID, 
-              token: window.fcmToken 
-            }));
-          }
+    if (window.fcmToken) {
+  client.publish('drivers/tokens', JSON.stringify({ 
+    driverId: DRIVER_ID, 
+    fcmToken: window.fcmToken 
+  }));
+}
           // Publish initial status
           client.publish(`drivers/${DRIVER_ID}/status`, JSON.stringify({
             driver: DRIVER_ID,
@@ -1853,16 +1853,15 @@ async function requestFCMToken() {
       serviceWorkerRegistration: registration // ✅ Critical for subdirectories
     });
     console.log('FCM Token:', token);
-        if (client && client.connected) {
-          // ✅ v6.2: Send driverId + token together
-          client.publish(`drivers/${DRIVER_ID}/token`, JSON.stringify({ 
-            driverId: DRIVER_ID, 
-            token: token 
-          }));
-        } else {
-          // Store for later publishing when MQTT connects
-          window.fcmToken = token;
-        }
+ if (client && client.connected) {
+  // ✅ PUBLISH TO drivers/tokens (not drivers/{id}/token)
+  client.publish('drivers/tokens', JSON.stringify({ 
+    driverId: DRIVER_ID, 
+    fcmToken: token   // 👈 Use "fcmToken" to match pub tablet
+  }));
+} else {
+  window.fcmToken = token;
+}
         return token;
   } catch (err) {
     console.error('FCM token error:', err);
@@ -1878,3 +1877,4 @@ async function requestFCMToken() {
   </script>
 </body>
 </html>
+
