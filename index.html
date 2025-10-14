@@ -12,6 +12,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
   <style>
+    /* ... (keep all existing CSS unchanged) ... */
     body { 
       margin:0; 
       font-family:system-ui, -apple-system, "Segoe UI", sans-serif; 
@@ -542,6 +543,7 @@
   </style>
 </head>
 <body>
+  <!-- ... (keep all existing HTML structure unchanged) ... -->
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
@@ -662,7 +664,7 @@
       new Notification(payload.notification?.title || "🚕 New Job", {
         body: payload.notification?.body || "Tap to view job details",
         icon: "/icon-192.png",
-       data: payload.data || {}
+        data: payload.data || {}
       });
     });
     // ✅ FIXED: SERVICE WORKER FOR GITHUB PAGES
@@ -864,6 +866,10 @@ if ('serviceWorker' in navigator) {
         }
         statusEl.innerHTML = '<span class="gps-source gps-poor"></span>Searching for GPS...';
         requestWakeLock();
+        // ✅ CLEAR EXISTING WATCH TO AVOID DUPLICATES
+        if (gpsWatchId) {
+          navigator.geolocation.clearWatch(gpsWatchId);
+        }
         gpsWatchId = navigator.geolocation.watchPosition(
           pos => {
             const gpsData = {
@@ -893,6 +899,12 @@ if ('serviceWorker' in navigator) {
           },
           err => {
             statusEl.textContent = "GPS error: " + err.message;
+            // ✅ RETRY GPS AFTER 5 SECONDS IF STILL ONLINE
+            setTimeout(() => {
+              if (driverPresence !== 'offline') {
+                initGPS();
+              }
+            }, 5000);
           },
           { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 }
         );
@@ -1595,7 +1607,11 @@ if ('serviceWorker' in navigator) {
           navigator.geolocation.clearWatch(gpsWatchId);
           gpsWatchId = null;
         } else if (status !== 'offline' && !gpsWatchId) {
+          // ✅ RESTART GPS WHEN COMING ONLINE
           initGPS();
+        } else if (status !== 'offline' && driverCoords) {
+          // ✅ PUBLISH CURRENT LOCATION ON STATUS CHANGE
+          publishLocationThrottled(driverCoords);
         }
       }
       function handleLogOff() {
@@ -1631,6 +1647,10 @@ if ('serviceWorker' in navigator) {
             status: driverPresence,
             ts: Date.now()
           }));
+          // ✅ PUBLISH CURRENT LOCATION ON RECONNECT
+          if (driverCoords) {
+            publishLocationThrottled(driverCoords);
+          }
           setInterval(cleanupOldDrivers, 30000);
           // Auto-clean expired pending jobs
           setInterval(() => {
