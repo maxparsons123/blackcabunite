@@ -674,7 +674,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
       // ✅ Register SW in your subdirectory with correct scope
-      const swRegistration = await navigator.serviceWorker.register(
+      swRegistration = await navigator.serviceWorker.register(
         './firebase-messaging-sw.js',
         { scope: './' }
       );
@@ -1877,5 +1877,6 @@ async function requestFCMToken() {
   </script>
 </body>
 </html>
+
 
 
