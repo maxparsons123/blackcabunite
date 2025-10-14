@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v6.1</title>
+  <title>Black Cab Unite v6.2</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <!-- PWA -->
@@ -545,7 +545,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v6.1</div>
+      <div id="appTitle">Black Cab Unite v6.2</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -1618,9 +1618,12 @@ if ('serviceWorker' in navigator) {
           client.subscribe(CHAT_GROUP_TOPIC);
           client.subscribe(CHAT_PRIVATE_TOPIC);
           client.subscribe(JOB_RESULT_TOPIC);
-          // ✅ Publish FCM token if available
+          // ✅ v6.2: Publish FCM token WITH driverId in payload
           if (window.fcmToken) {
-            client.publish(`drivers/${DRIVER_ID}/token`, JSON.stringify({ token }));
+            client.publish(`drivers/${DRIVER_ID}/token`, JSON.stringify({ 
+              driverId: DRIVER_ID, 
+              token: window.fcmToken 
+            }));
           }
           // Publish initial status
           client.publish(`drivers/${DRIVER_ID}/status`, JSON.stringify({
@@ -1742,7 +1745,7 @@ if ('serviceWorker' in navigator) {
                 }
               }
             }
-            // ✅ FIXED: Skip self-messages to prevent duplicates
+            // ✅ FIXED: Allow 1:1 private messages from other drivers
             if (topic === CHAT_GROUP_TOPIC) {
               if (data.sender !== DRIVER_ID) {
                 addMessage('group', data.sender, data.text, data.timestamp);
@@ -1750,7 +1753,8 @@ if ('serviceWorker' in navigator) {
             }
             if (topic.startsWith(`chat/private/${DRIVER_ID}/`)) {
               const sender = topic.split('/')[2];
-              if (data.sender !== DRIVER_ID) {
+              // ✅ v6.2: Only skip if it's our own message sent to ourselves (shouldn't happen)
+              if (sender !== DRIVER_ID) {
                 addMessage(sender, data.sender, data.text, data.timestamp);
               }
             }
@@ -1817,14 +1821,12 @@ async function requestFCMToken() {
   try {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return null;
-
     // ✅ Get active SW registration
     const registration = await navigator.serviceWorker.getRegistration('./');
     if (!registration) {
       console.warn("No service worker registration found.");
       return null;
     }
-
     // ✅ Use registration in getToken()
     const token = await firebase.messaging().getToken({
       vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
@@ -1832,12 +1834,16 @@ async function requestFCMToken() {
     });
     console.log('FCM Token:', token);
         if (client && client.connected) {
- client.publish(`drivers/${DRIVER_ID}/token`, JSON.stringify({ token }));
-    } else {
-      // Store for later publishing when MQTT connects
-      window.fcmToken = token;
-    }
-    return token;
+          // ✅ v6.2: Send driverId + token together
+          client.publish(`drivers/${DRIVER_ID}/token`, JSON.stringify({ 
+            driverId: DRIVER_ID, 
+            token: token 
+          }));
+        } else {
+          // Store for later publishing when MQTT connects
+          window.fcmToken = token;
+        }
+        return token;
   } catch (err) {
     console.error('FCM token error:', err);
     return null;
@@ -1852,7 +1858,3 @@ async function requestFCMToken() {
   </script>
 </body>
 </html>
-
-
-
-
