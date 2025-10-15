@@ -13,10 +13,9 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Optional: log background messages
 messaging.onBackgroundMessage((payload) => {
   console.log('[SW] Background message:', payload);
-  // Firebase SDK will auto-show notification if payload.notification exists
+  // Firebase shows notification automatically if payload.notification exists
 });
 
 self.addEventListener('notificationclick', (event) => {
