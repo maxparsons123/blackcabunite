@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v6.2</title>
+  <title>Black Cab Unite v6.4</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <!-- PWA -->
@@ -543,11 +543,11 @@
   </style>
 </head>
 <body>
-  <!-- ... (keep all existing HTML structure unchanged) ... -->
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v6.3</div>
+      <!-- ✅ VERSION UPDATED TO 6.4 -->
+      <div id="appTitle">Black Cab Unite v6.4</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -660,27 +660,25 @@
     firebase.initializeApp(firebaseConfig);
     const messaging = firebase.messaging();
     // ===== FCM: Foreground Notifications =====
-messaging.onMessage((payload) => {
-  console.log("📲 Foreground message received:", payload);
-
-});
+    messaging.onMessage((payload) => {
+      console.log("📲 Foreground message received:", payload);
+      // ✅ NO NOTIFICATION IN FOREGROUND — handled by MQTT
+    });
     // ✅ FIXED: SERVICE WORKER FOR GITHUB PAGES
     let swRegistration = null;
-// ===== SERVICE WORKER FOR GITHUB PAGES =====
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      // ✅ Register SW in your subdirectory with correct scope
-      swRegistration = await navigator.serviceWorker.register(
-        './firebase-messaging-sw.js',
-        { scope: './' }
-      );
-      console.log('✅ Firebase SW registered:', swRegistration.scope);
-    } catch (err) {
-      console.error('❌ Firebase SW failed:', err);
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          swRegistration = await navigator.serviceWorker.register(
+            './firebase-messaging-sw.js',
+            { scope: './' }
+          );
+          console.log('✅ Firebase SW registered:', swRegistration.scope);
+        } catch (err) {
+          console.error('❌ Firebase SW failed:', err);
+        }
+      });
     }
-  });
-}
     document.addEventListener('DOMContentLoaded', () => {
       // ===== Driver Registration =====
       let DRIVER_ID = localStorage.getItem('driver_id');
@@ -1052,9 +1050,19 @@ if ('serviceWorker' in navigator) {
           const date = new Date(job.timestamp);
           const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
           const dateStr = date.toLocaleDateString();
-          let viewButton = '';
+          let actionButtons = '';
           if (job.status === 'queued') {
-            viewButton = `<button class="settings-btn view-queued-btn" data-jobid="${job.job}" style="margin-top:10px; padding:8px; font-size:14px;">View Job Offer</button>`;
+            // ✅ ADDED: Bid + View buttons
+            actionButtons = `
+              <div style="display:flex; gap:8px; margin-top:12px;">
+                <button class="settings-btn" style="flex:1; padding:8px; font-size:14px;" data-action="view" data-jobid="${job.job}">
+                  View Details
+                </button>
+                <button class="settings-btn" style="flex:1; padding:8px; font-size:14px; background:#28a745;" data-action="bid" data-jobid="${job.job}">
+                  💰 Bid Now
+                </button>
+              </div>
+            `;
           }
           jobEl.innerHTML = `
             <div class="job-id">${job.job}</div>
@@ -1065,24 +1073,35 @@ if ('serviceWorker' in navigator) {
               <span class="job-status status-${job.status}">${job.status.toUpperCase()}</span>
               <span style="font-size:12px; color:#666;">${dateStr} ${timeStr}</span>
             </div>
-            ${viewButton}
+            ${actionButtons}
           `;
           jobsContainer.appendChild(jobEl);
         });
         menuContent.appendChild(jobsContainer);
-        // Add click handlers for queued jobs
-        menuContent.querySelectorAll('.view-queued-btn').forEach(btn => {
+
+        // ✅ CLICK HANDLERS FOR Bid/View
+        menuContent.querySelectorAll('[data-action]').forEach(btn => {
           btn.addEventListener('click', (e) => {
+            const action = e.target.dataset.action;
             const jobId = e.target.dataset.jobid;
             const job = pendingJobs.find(j => j.job === jobId);
-            if (job && !isJobActive) {
+            if (!job) {
+              alert("Job no longer available.");
+              return;
+            }
+            if (action === 'view') {
+              if (isJobActive) {
+                alert("Please finish the current job first.");
+                return;
+              }
               showJobPanel(job);
-            } else {
-              alert("Please finish the current job first.");
+            } else if (action === 'bid') {
+              // ✅ AUTO-BID + OPEN PANEL
+              respondToJob(true, job);
             }
           });
         });
-        // Attach swipe-to-delete
+
         attachSwipeToDelete();
       }
       // ===== SWIPE-TO-DELETE FUNCTION =====
@@ -1477,78 +1496,8 @@ if ('serviceWorker' in navigator) {
         savePendingJobs();
         showJobPanel(job);
       }
-      function showJobPanel(job) {
-        if (jobTimerInterval) {
-          clearInterval(jobTimerInterval);
-          jobTimerInterval = null;
-        }
-        stopVoiceListener();
-        currentJob = null;
-        isJobActive = true;
-        currentJob = job;
-        jobPanel.style.display = 'block';
-        pickupLocation.textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
-        customerPhone.textContent = job.customerPhone;
-        // Timer hidden until TTS finishes
-        const timerEl = document.getElementById('jobTimer');
-        const secondsEl = document.getElementById('timerSeconds');
-        timerEl.style.display = 'none';
-        // TTS first
-        if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(
-            `New job! Pickup at ${job.pubName}. Customer phone: ${job.customerPhone}`
-          );
-          utterance.lang = 'en-GB';
-          utterance.rate = 0.9;
-          utterance.onend = () => {
-            // ✅ START TIMER AFTER TTS
-            timerEl.style.display = 'block';
-            secondsEl.textContent = '30';
-            let secondsLeft = 30;
-            jobTimerInterval = setInterval(() => {
-              secondsLeft--;
-              secondsEl.textContent = secondsLeft;
-              if (secondsLeft <= 0) {
-                clearInterval(jobTimerInterval);
-                jobTimerInterval = null;
-                cleanupJob();
-                processNextJob();
-              }
-            }, 1000);
-            startVoiceListener();
-          };
-          speechSynthesis.cancel();
-          speechSynthesis.speak(utterance);
-        } else {
-          // No TTS? Start timer immediately
-          timerEl.style.display = 'block';
-          secondsEl.textContent = '30';
-          let secondsLeft = 30;
-          jobTimerInterval = setInterval(() => {
-            secondsLeft--;
-            secondsEl.textContent = secondsLeft;
-            if (secondsLeft <= 0) {
-              clearInterval(jobTimerInterval);
-              jobTimerInterval = null;
-              cleanupJob();
-              processNextJob();
-            }
-          }, 1000);
-          startVoiceListener();
-        }
-        // Wake Lock
-        async function requestJobWakeLock() {
-          if ('wakeLock' in navigator) {
-            try {
-              jobWakeLock = await navigator.wakeLock.request('screen');
-              jobWakeLock.addEventListener('release', () => { jobWakeLock = null; });
-            } catch (err) {
-              console.warn('Job Wake Lock failed:', err);
-            }
-          }
-        }
-        requestJobWakeLock();
-      }
+
+      // ✅ ENHANCED CLEANUP: cancel TTS explicitly
       function cleanupJob() {
         if (jobTimerInterval) {
           clearInterval(jobTimerInterval);
@@ -1556,6 +1505,7 @@ if ('serviceWorker' in navigator) {
         }
         jobPanel.style.display = 'none';
         stopVoiceListener();
+        speechSynthesis.cancel(); // ✅ ADDED: stop any TTS
         currentJob = null;
         isJobActive = false;
         if (pickupMarker) { map.removeLayer(pickupMarker); pickupMarker = null; }
@@ -1565,28 +1515,47 @@ if ('serviceWorker' in navigator) {
           jobWakeLock = null;
         }
       }
-      function respondToJob(accepted) {
-        if (!currentJob || !client) return;
+
+      // ✅ ENHANCED: accept optional job + full cleanup
+      function respondToJob(accepted, job = currentJob) {
+        if (!job || !client) return;
+
+        // ✅ FULL CLEANUP ON MANUAL ACTION
+        if (jobTimerInterval) {
+          clearInterval(jobTimerInterval);
+          jobTimerInterval = null;
+        }
+        stopVoiceListener();
+        speechSynthesis.cancel(); // ✅ STOP TTS IMMEDIATELY
+
         if (accepted) {
           const payload = {
-            job: currentJob.job,
+            job: job.job,
             driver: DRIVER_ID,
-            lat: driverCoords?.lat || currentJob.lat,
-            lng: driverCoords?.lng || currentJob.lng,
+            lat: driverCoords?.lat || job.lat,
+            lng: driverCoords?.lng || job.lng,
             timestamp: Date.now()
           };
-          client.publish(`jobs/${currentJob.job}/accept`, JSON.stringify(payload));
+          client.publish(`jobs/${job.job}/accept`, JSON.stringify(payload));
           statusEl.innerHTML = '✅ Bid sent';
-          updateJobStatus(currentJob.job, 'bidding');
+          updateJobStatus(job.job, 'bidding');
         } else {
-          const payload = { job: currentJob.job, driver: DRIVER_ID, status: "rejected", ts: Date.now() };
-          client.publish(`jobs/${currentJob.job}/status`, JSON.stringify(payload));
+          const payload = { job: job.job, driver: DRIVER_ID, status: "rejected", ts: Date.now() };
+          client.publish(`jobs/${job.job}/status`, JSON.stringify(payload));
           statusEl.innerHTML = '❌ Job rejected';
-          updateJobStatus(currentJob.job, 'rejected');
+          updateJobStatus(job.job, 'rejected');
         }
-        cleanupJob();
-        processNextJob();
+
+        // If this was the current job, clean up panel
+        if (job === currentJob) {
+          cleanupJob();
+          processNextJob();
+        } else {
+          // ✅ AUTO-OPEN JOB PANEL FOR BID FROM HISTORY
+          showJobPanel(job);
+        }
       }
+
       // ===== DRIVER PRESENCE MANAGEMENT =====
       function setDriverPresence(status) {
         if (!['available', 'busy', 'offline'].includes(status)) return;
@@ -1874,8 +1843,3 @@ async function requestFCMToken() {
   </script>
 </body>
 </html>
-
-
-
-
-
