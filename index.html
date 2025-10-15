@@ -660,13 +660,28 @@
     firebase.initializeApp(firebaseConfig);
     const messaging = firebase.messaging();
     // ===== FCM: Foreground Notifications =====
-    messaging.onMessage((payload) => {
-      new Notification(payload.notification?.title || "🚕 New Job", {
-        body: payload.notification?.body || "Tap to view job details",
-        icon: "/icon-192.png",
-        data: payload.data || {}
-      });
-    });
+messaging.onMessage((payload) => {
+  console.log("📲 Foreground message received:", payload);
+
+  const title = payload.notification?.title || "🚕 New Job";
+  const body = payload.notification?.body || "Tap to view job";
+  const jobId = payload.data?.jobId;
+
+  if (confirm(`${title}\n\n${body}\n\nOpen job details?`)) {
+    window.focus(); // Bring tab/PWA to front
+    // Since this is a single-page app, we don't navigate to /jobs/...
+    // But we can trigger job display if it's in pendingJobs.
+    if (jobId) {
+      // Try to find and show the job
+      const job = pendingJobs.find(j => j.job === jobId);
+      if (job && !isJobActive) {
+        showJobPanel(job);
+      } else {
+        alert("Job not found or already in progress.");
+      }
+    }
+  }
+});
     // ✅ FIXED: SERVICE WORKER FOR GITHUB PAGES
     let swRegistration = null;
 // ===== SERVICE WORKER FOR GITHUB PAGES =====
@@ -1877,6 +1892,7 @@ async function requestFCMToken() {
   </script>
 </body>
 </html>
+
 
 
 
