@@ -906,6 +906,143 @@
         );
         connectMQTT();
       }
+
+      // ===== CLEANUP JOB (MUST BE BEFORE showJobPanel) =====
+      function cleanupJob() {
+        if (jobTimerInterval) {
+          clearInterval(jobTimerInterval);
+          jobTimerInterval = null;
+        }
+        jobPanel.style.display = 'none';
+        stopVoiceListener();
+        speechSynthesis.cancel(); // ✅ STOP TTS
+        currentJob = null;
+        isJobActive = false;
+        if (pickupMarker) { map.removeLayer(pickupMarker); pickupMarker = null; }
+        if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+        if (jobWakeLock) {
+          jobWakeLock.release();
+          jobWakeLock = null;
+        }
+      }
+
+      // ===== SHOW JOB PANEL (MUST BE BEFORE processNextJob) =====
+      function showJobPanel(job) {
+        if (jobTimerInterval) {
+          clearInterval(jobTimerInterval);
+          jobTimerInterval = null;
+        }
+        stopVoiceListener();
+        currentJob = null;
+        isJobActive = true;
+        currentJob = job;
+        jobPanel.style.display = 'block';
+        pickupLocation.textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
+        customerPhone.textContent = job.customerPhone;
+        const timerEl = document.getElementById('jobTimer');
+        const secondsEl = document.getElementById('timerSeconds');
+        timerEl.style.display = 'none';
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(
+            `New job! Pickup at ${job.pubName}. Customer phone: ${job.customerPhone}`
+          );
+          utterance.lang = 'en-GB';
+          utterance.rate = 0.9;
+          utterance.onend = () => {
+            timerEl.style.display = 'block';
+            secondsEl.textContent = '30';
+            let secondsLeft = 30;
+            jobTimerInterval = setInterval(() => {
+              secondsLeft--;
+              secondsEl.textContent = secondsLeft;
+              if (secondsLeft <= 0) {
+                clearInterval(jobTimerInterval);
+                jobTimerInterval = null;
+                cleanupJob();
+                processNextJob();
+              }
+            }, 1000);
+            startVoiceListener();
+          };
+          speechSynthesis.cancel();
+          speechSynthesis.speak(utterance);
+        } else {
+          timerEl.style.display = 'block';
+          secondsEl.textContent = '30';
+          let secondsLeft = 30;
+          jobTimerInterval = setInterval(() => {
+            secondsLeft--;
+            secondsEl.textContent = secondsLeft;
+            if (secondsLeft <= 0) {
+              clearInterval(jobTimerInterval);
+              jobTimerInterval = null;
+              cleanupJob();
+              processNextJob();
+            }
+          }, 1000);
+          startVoiceListener();
+        }
+        async function requestJobWakeLock() {
+          if ('wakeLock' in navigator) {
+            try {
+              jobWakeLock = await navigator.wakeLock.request('screen');
+              jobWakeLock.addEventListener('release', () => { jobWakeLock = null; });
+            } catch (err) {
+              console.warn('Job Wake Lock failed:', err);
+            }
+          }
+        }
+        requestJobWakeLock();
+      }
+
+      // ===== STRICT FIFO JOB QUEUE =====
+      function processNextJob() {
+        if (isJobActive || pendingJobs.length === 0 || driverPresence !== 'available') return;
+        const job = pendingJobs.shift();
+        savePendingJobs();
+        showJobPanel(job);
+      }
+
+      // ✅ ENHANCED: accept optional job + full cleanup
+      function respondToJob(accepted, job = currentJob) {
+        if (!job || !client) return;
+
+        // ✅ FULL CLEANUP ON MANUAL ACTION
+        if (jobTimerInterval) {
+          clearInterval(jobTimerInterval);
+          jobTimerInterval = null;
+        }
+        stopVoiceListener();
+        speechSynthesis.cancel(); // ✅ STOP TTS IMMEDIATELY
+
+        if (accepted) {
+          const payload = {
+            job: job.job,
+            driver: DRIVER_ID,
+            lat: driverCoords?.lat || job.lat,
+            lng: driverCoords?.lng || job.lng,
+            timestamp: Date.now()
+          };
+          client.publish(`jobs/${job.job}/accept`, JSON.stringify(payload));
+          statusEl.innerHTML = '✅ Bid sent';
+          updateJobStatus(job.job, 'bidding');
+        } else {
+          const payload = { job: job.job, driver: DRIVER_ID, status: "rejected", ts: Date.now() };
+          client.publish(`jobs/${job.job}/status`, JSON.stringify(payload));
+          statusEl.innerHTML = '❌ Job rejected';
+          updateJobStatus(job.job, 'rejected');
+        }
+
+        // If this was the current job, clean up panel
+        if (job === currentJob) {
+          cleanupJob();
+          processNextJob();
+        } else {
+          // ✅ AUTO-OPEN JOB PANEL FOR BID FROM HISTORY
+          showJobPanel(job);
+        }
+      }
+
       // ===== MENU NAVIGATION =====
       function toggleMenu() {
         isMenuOpen = !isMenuOpen;
@@ -1490,73 +1627,6 @@
         speechSynthesis.cancel();
         speechSynthesis.speak(utterance);
       }
-      // ===== STRICT FIFO JOB QUEUE =====
-      function processNextJob() {
-        if (isJobActive || pendingJobs.length === 0 || driverPresence !== 'available') return;
-        const job = pendingJobs.shift();
-        savePendingJobs();
-        showJobPanel(job);
-      }
-
-      // ✅ ENHANCED CLEANUP: cancel TTS explicitly
-      function cleanupJob() {
-        if (jobTimerInterval) {
-          clearInterval(jobTimerInterval);
-          jobTimerInterval = null;
-        }
-        jobPanel.style.display = 'none';
-        stopVoiceListener();
-        speechSynthesis.cancel(); // ✅ ADDED: stop any TTS
-        currentJob = null;
-        isJobActive = false;
-        if (pickupMarker) { map.removeLayer(pickupMarker); pickupMarker = null; }
-        if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
-        if (jobWakeLock) {
-          jobWakeLock.release();
-          jobWakeLock = null;
-        }
-      }
-
-      // ✅ ENHANCED: accept optional job + full cleanup
-      function respondToJob(accepted, job = currentJob) {
-        if (!job || !client) return;
-
-        // ✅ FULL CLEANUP ON MANUAL ACTION
-        if (jobTimerInterval) {
-          clearInterval(jobTimerInterval);
-          jobTimerInterval = null;
-        }
-        stopVoiceListener();
-        speechSynthesis.cancel(); // ✅ STOP TTS IMMEDIATELY
-
-        if (accepted) {
-          const payload = {
-            job: job.job,
-            driver: DRIVER_ID,
-            lat: driverCoords?.lat || job.lat,
-            lng: driverCoords?.lng || job.lng,
-            timestamp: Date.now()
-          };
-          client.publish(`jobs/${job.job}/accept`, JSON.stringify(payload));
-          statusEl.innerHTML = '✅ Bid sent';
-          updateJobStatus(job.job, 'bidding');
-        } else {
-          const payload = { job: job.job, driver: DRIVER_ID, status: "rejected", ts: Date.now() };
-          client.publish(`jobs/${job.job}/status`, JSON.stringify(payload));
-          statusEl.innerHTML = '❌ Job rejected';
-          updateJobStatus(job.job, 'rejected');
-        }
-
-        // If this was the current job, clean up panel
-        if (job === currentJob) {
-          cleanupJob();
-          processNextJob();
-        } else {
-          // ✅ AUTO-OPEN JOB PANEL FOR BID FROM HISTORY
-          showJobPanel(job);
-        }
-      }
-
       // ===== DRIVER PRESENCE MANAGEMENT =====
       function setDriverPresence(status) {
         if (!['available', 'busy', 'offline'].includes(status)) return;
