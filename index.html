@@ -546,7 +546,6 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <!-- ✅ VERSION UPDATED TO 6.4 -->
       <div id="appTitle">Black Cab Unite v6.4</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
@@ -740,6 +739,8 @@
       let jobTimerInterval = null;
       // ✅ JOB WAKE LOCK
       let jobWakeLock = null;
+      // ✅ FCM TOKEN TRACKER
+      let fcmToken = null;
       const statusEl = document.getElementById('status');
       const jobPanel = document.getElementById('jobPanel');
       const pickupLocation = document.getElementById('pickupLocation');
@@ -1600,13 +1601,8 @@
           client.subscribe(CHAT_GROUP_TOPIC);
           client.subscribe(CHAT_PRIVATE_TOPIC);
           client.subscribe(JOB_RESULT_TOPIC);
-          // ✅ v6.2: Publish FCM token WITH driverId in payload
-    if (window.fcmToken) {
-  client.publish('drivers/tokens', JSON.stringify({ 
-    driverId: DRIVER_ID, 
-    fcmToken: window.fcmToken 
-  }));
-}
+          // ✅ Publish FCM token on every connect
+          publishFcmToken();
           // Publish initial status
           client.publish(`drivers/${DRIVER_ID}/status`, JSON.stringify({
             driver: DRIVER_ID,
@@ -1776,6 +1772,38 @@
         });
         updateChatList();
       }
+      // ===== FCM TOKEN REQUEST (FIXED) =====
+      async function requestFCMToken() {
+        try {
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') return null;
+          const registration = await navigator.serviceWorker.getRegistration('./');
+          if (!registration) {
+            console.warn("No service worker registration found.");
+            return null;
+          }
+          const token = await firebase.messaging().getToken({
+            vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
+            serviceWorkerRegistration: registration
+          });
+          console.log('FCM Token:', token);
+          fcmToken = token;
+          publishFcmToken();
+          return token;
+        } catch (err) {
+          console.error('FCM token error:', err);
+          return null;
+        }
+      }
+      function publishFcmToken() {
+        if (fcmToken && client && client.connected) {
+          client.publish('drivers/tokens', JSON.stringify({
+            driverId: DRIVER_ID,
+            fcmToken: fcmToken
+          }));
+          console.log("✅ FCM token published to MQTT");
+        }
+      }
       // ===== EVENT LISTENERS =====
       document.getElementById('menuBtn').addEventListener('click', toggleMenu);
       document.getElementById('acceptBtn').addEventListener('click', () => respondToJob(true));
@@ -1803,37 +1831,6 @@
         });
       });
       // ===== FCM TOKEN REQUEST =====
-async function requestFCMToken() {
-  try {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return null;
-    // ✅ Get active SW registration
-    const registration = await navigator.serviceWorker.getRegistration('./');
-    if (!registration) {
-      console.warn("No service worker registration found.");
-      return null;
-    }
-    // ✅ Use registration in getToken()
-    const token = await firebase.messaging().getToken({
-      vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
-      serviceWorkerRegistration: registration // ✅ Critical for subdirectories
-    });
-    console.log('FCM Token:', token);
- if (client && client.connected) {
-  // ✅ PUBLISH TO drivers/tokens (not drivers/{id}/token)
-  client.publish('drivers/tokens', JSON.stringify({ 
-    driverId: DRIVER_ID, 
-    fcmToken: token   // 👈 Use "fcmToken" to match pub tablet
-  }));
-} else {
-  window.fcmToken = token;
-}
-        return token;
-  } catch (err) {
-    console.error('FCM token error:', err);
-    return null;
-  }
-}
       if ('serviceWorker' in navigator && 'Notification' in window) {
         setTimeout(() => requestFCMToken(), 3000);
       }
