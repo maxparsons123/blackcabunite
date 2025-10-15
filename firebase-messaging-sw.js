@@ -1,3 +1,4 @@
+// firebase-messaging-sw.js
 importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js");
 
@@ -12,44 +13,41 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Background notifications
+// Optional: log background messages
 messaging.onBackgroundMessage((payload) => {
   console.log('[SW] Background message:', payload);
-
-  const title = payload.notification?.title || '🚕 New Job';
-  const options = {
-    body: payload.notification?.body || 'Tap to view job details',
-    icon: payload.notification?.icon || '/icon-192.png',
-    badge: '/icon-192.png',
-    requireInteraction: true,
-    data: payload.data || {} // must include payload.data.url for deep-linking
-  };
-
-  return self.registration.showNotification(title, options);
 });
 
-// Click handler: bring PWA to front or open job
+// ✅ THIS IS WHERE YOUR NOTIFICATION CLICK HANDLER GOES:
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-
-  const targetUrl = event.notification.data?.url || '/';
-
+  const jobId = event.notification.data?.jobId;
+  
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
-      // Try to focus an existing tab first
-      for (const client of clientList) {
-        if ('focus' in client) {
-          client.focus();
-          // If possible, navigate to job inside the app
-          if (client.url !== targetUrl) client.navigate(targetUrl);
-          return;
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(clientList => {
+        // Try to focus an existing tab with your app
+        for (const client of clientList) {
+          if (client.url.includes('blackcabunite') && 'focus' in client) {
+            client.focus();
+            if (jobId) {
+              client.postMessage({ type: 'OPEN_JOB', jobId });
+            }
+            return;
+          }
         }
-      }
-      // If no existing tab, open a new window/tab
-      if (clients.openWindow) return clients.openWindow(targetUrl);
-    })
+        // Open new tab if no existing one
+        if (clients.openWindow) {
+          const url = jobId 
+            ? 'https://maxparsons123.github.io/blackcabunite/?job=' + encodeURIComponent(jobId)
+            : 'https://maxparsons123.github.io/blackcabunite/';
+          return clients.openWindow(url);
+        }
+      })
   );
 });
 
-// Minimal fetch listener for PWA installability
-self.addEventListener('fetch', (event) => {});
+// Required for PWA
+self.addEventListener('fetch', (event) => {
+  // You can leave this empty
+});
