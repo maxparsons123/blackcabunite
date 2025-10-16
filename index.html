@@ -906,7 +906,6 @@
         );
         connectMQTT();
       }
-
       // ===== CLEANUP JOB (MUST BE BEFORE showJobPanel) =====
       function cleanupJob() {
         if (jobTimerInterval) {
@@ -925,7 +924,6 @@
           jobWakeLock = null;
         }
       }
-
       // ===== SHOW JOB PANEL (MUST BE BEFORE processNextJob) =====
       function showJobPanel(job) {
         if (jobTimerInterval) {
@@ -994,7 +992,6 @@
         }
         requestJobWakeLock();
       }
-
       // ===== STRICT FIFO JOB QUEUE =====
       function processNextJob() {
         if (isJobActive || pendingJobs.length === 0 || driverPresence !== 'available') return;
@@ -1002,11 +999,9 @@
         savePendingJobs();
         showJobPanel(job);
       }
-
-      // ✅ ENHANCED: accept optional job + full cleanup
+      // ✅ ENHANCED: accept optional job + full cleanup + 2-second delay
       function respondToJob(accepted, job = currentJob) {
         if (!job || !client) return;
-
         // ✅ FULL CLEANUP ON MANUAL ACTION
         if (jobTimerInterval) {
           clearInterval(jobTimerInterval);
@@ -1014,7 +1009,6 @@
         }
         stopVoiceListener();
         speechSynthesis.cancel(); // ✅ STOP TTS IMMEDIATELY
-
         if (accepted) {
           const payload = {
             job: job.job,
@@ -1032,17 +1026,18 @@
           statusEl.innerHTML = '❌ Job rejected';
           updateJobStatus(job.job, 'rejected');
         }
-
         // If this was the current job, clean up panel
         if (job === currentJob) {
           cleanupJob();
-          processNextJob();
+          // ✅ DELAY NEXT JOB BY 2 SECONDS TO PREVENT CLASHES
+          setTimeout(() => {
+            processNextJob();
+          }, 2000);
         } else {
           // ✅ AUTO-OPEN JOB PANEL FOR BID FROM HISTORY
           showJobPanel(job);
         }
       }
-
       // ===== MENU NAVIGATION =====
       function toggleMenu() {
         isMenuOpen = !isMenuOpen;
@@ -1216,17 +1211,21 @@
           jobsContainer.appendChild(jobEl);
         });
         menuContent.appendChild(jobsContainer);
-
         // ✅ CLICK HANDLERS FOR Bid/View
         menuContent.querySelectorAll('[data-action]').forEach(btn => {
           btn.addEventListener('click', (e) => {
             const action = e.target.dataset.action;
             const jobId = e.target.dataset.jobid;
-            const job = pendingJobs.find(j => j.job === jobId);
+            
+            // ✅ FIX: Look in BOTH pendingJobs AND driverJobs
+            const job = pendingJobs.find(j => j.job === jobId) || 
+                        driverJobs.find(j => j.job === jobId && j.status === 'queued');
+            
             if (!job) {
               alert("Job no longer available.");
               return;
             }
+            
             if (action === 'view') {
               if (isJobActive) {
                 alert("Please finish the current job first.");
@@ -1239,7 +1238,6 @@
             }
           });
         });
-
         attachSwipeToDelete();
       }
       // ===== SWIPE-TO-DELETE FUNCTION =====
