@@ -1791,70 +1791,120 @@
         updateChatList();
       }
 
-     async function requestFCMToken() {
+ async function requestFCMToken() {
         try {
           const permission = await Notification.requestPermission();
-          if (permission !== 'granted') return null;
-          const registration = await navigator.serviceWorker.getRegistration('./');
-          if (!registration) {
-            console.warn("No service worker registration found.");
+          if (permission !== 'granted') {
+            console.warn('Notification permission not granted');
             return null;
           }
-          const token = await firebase.messaging().getToken({
-            vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
-            serviceWorkerRegistration: registration
+
+          fcmToken = await messaging.getToken({
+            vapidKey: "BJzV8Vx2sDvF6u9vGqK7vV5vD0U6X1aB5e4R3cN2mL1kJ0hI9gF8dC7bA6yZ5xW4vU3tS2rQ1pO0nM"
           });
-          console.log('FCM Token:', token);
-          fcmToken = token;
-          publishFcmToken();
-          return token;
+
+          if (fcmToken) {
+            console.log('FCM Token:', fcmToken);
+            // Optionally send to your server or MQTT
+            publishFcmToken();
+          } else {
+            console.warn('No FCM token retrieved');
+          }
+          return fcmToken;
         } catch (err) {
-          console.error('FCM token error:', err);
+          console.error('Failed to get FCM token:', err);
           return null;
         }
       }
+
       function publishFcmToken() {
         if (fcmToken && client && client.connected) {
-          client.publish('drivers/tokens', JSON.stringify({
-            driverId: DRIVER_ID,
-            fcmToken: fcmToken
+          client.publish(`drivers/${DRIVER_ID}/fcm`, JSON.stringify({
+            driver: DRIVER_ID,
+            fcmToken: fcmToken,
+            ts: Date.now()
           }));
-          console.log("✅ FCM token published to MQTT");
         }
       }
-      // ===== EVENT LISTENERS =====
-      document.getElementById('menuBtn').addEventListener('click', toggleMenu);
-      document.getElementById('acceptBtn').addEventListener('click', () => respondToJob(true));
-      document.getElementById('rejectBtn').addEventListener('click', () => respondToJob(false));
-      // Status dropdown toggle
-      document.getElementById('appTitleContainer').addEventListener('click', () => {
-        const dropdown = document.getElementById('statusDropdown');
-        dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
-      });
-      // Status option selection
-      document.querySelectorAll('.status-option').forEach(el => {
-        el.addEventListener('click', () => {
-          const status = el.dataset.status;
-          setDriverPresence(status);
-          document.getElementById('statusDropdown').style.display = 'none';
+
+      // Initialize FCM token request after service worker is ready
+      if (swRegistration) {
+        requestFCMToken();
+      } else if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(() => {
+          requestFCMToken();
+        }).catch(err => {
+          console.warn('Service Worker not ready for FCM:', err);
         });
+      }
+
+      // ===== UI EVENT LISTENERS =====
+      document.getElementById('menuBtn').addEventListener('click', () => {
+        isMenuOpen = !isMenuOpen;
+        if (isMenuOpen) {
+          menuPanel.classList.add('active');
+          renderCurrentView();
+        } else {
+          menuPanel.classList.remove('active');
+          currentChat = null;
+        }
       });
-      // Log off button
-      document.getElementById('logOffBtn').addEventListener('click', handleLogOff);
-      // ===== ATTACH TAB NAVIGATION LISTENERS =====
+
+      function renderCurrentView() {
+        if (currentView === 'currentJob') {
+          renderCurrentJob();
+        } else if (currentView === 'jobHistory') {
+          renderJobHistory();
+        } else if (currentView === 'chat') {
+          renderChatView();
+        } else if (currentView === 'settings') {
+          renderSettingsView();
+        }
+      }
+
       menuNavBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-          const view = btn.dataset.view;
-          switchView(view);
+          menuNavBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentView = btn.dataset.view;
+          renderCurrentView();
         });
       });
-      // ===== FCM TOKEN REQUEST =====
-      if ('serviceWorker' in navigator && 'Notification' in window) {
-        setTimeout(() => requestFCMToken(), 3000);
-      }
-      // Initialize map immediately (no delay)
+
+      document.getElementById('acceptBtn').addEventListener('click', () => respondToJob(true));
+      document.getElementById('rejectBtn').addEventListener('click', () => respondToJob(false));
+
+      // Status dropdown toggle
+      const appTitleContainer = document.getElementById('appTitleContainer');
+      const statusDropdown = document.getElementById('statusDropdown');
+      appTitleContainer.addEventListener('click', (e) => {
+        e.stopPropagation();
+        statusDropdown.style.display = statusDropdown.style.display === 'flex' ? 'none' : 'flex';
+      });
+
+      document.querySelectorAll('.status-option').forEach(option => {
+        option.addEventListener('click', () => {
+          const newStatus = option.dataset.status;
+          setDriverPresence(newStatus);
+          statusDropdown.style.display = 'none';
+        });
+      });
+
+      document.getElementById('logOffBtn').addEventListener('click', handleLogOff);
+
+      document.addEventListener('click', () => {
+        statusDropdown.style.display = 'none';
+      });
+
+      // Prevent dropdown from closing when clicking inside it
+      statusDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+
+      // Initialize app
       initMapImmediately();
     });
   </script>
 </body>
 </html>
+
