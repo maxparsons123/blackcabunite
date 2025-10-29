@@ -12,7 +12,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
   <style>
-    /* ... (keep all existing CSS unchanged) ... */
     body { 
       margin:0; 
       font-family:system-ui, -apple-system, "Segoe UI", sans-serif; 
@@ -660,12 +659,9 @@
     };
     firebase.initializeApp(firebaseConfig);
     const messaging = firebase.messaging();
-    // ===== FCM: Foreground Notifications =====
     messaging.onMessage((payload) => {
       console.log("📲 Foreground message received:", payload);
-      // ✅ NO NOTIFICATION IN FOREGROUND — handled by MQTT
     });
-    // ✅ FIXED: SERVICE WORKER FOR GITHUB PAGES
     let swRegistration = null;
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', async () => {
@@ -697,9 +693,7 @@
         }
         localStorage.setItem('driver_id', DRIVER_ID);
       }
-      // ===== Driver Presence =====
       let driverPresence = localStorage.getItem('driver_presence') || 'available';
-      // ===== TTS INITIALIZER =====
       let ttsInitialized = false;
       function initTTS() {
         if (ttsInitialized || !('speechSynthesis' in window)) return;
@@ -710,7 +704,7 @@
       }
       document.body.addEventListener('click', initTTS, { once: true });
       document.body.addEventListener('touchstart', initTTS, { once: true });
-      // ✅ KEEP 8884 AS REQUESTED (tablet compatibility)
+
       const MQTT_BROKER = "wss://broker.hivemq.com:8884/mqtt";
       const REQUEST_TOPIC = "pubs/requests/+";
       const LOCATION_TOPIC = `drivers/${DRIVER_ID}/location`;
@@ -718,6 +712,21 @@
       const CHAT_GROUP_TOPIC = "chat/group";
       const CHAT_PRIVATE_TOPIC = `chat/private/${DRIVER_ID}/+`;
       const JOB_RESULT_TOPIC = `jobs/+/result/${DRIVER_ID}`;
+
+      // ===== DEDUPLICATION HELPER =====
+      function dedupeJobs(jobs) {
+        const seen = new Set();
+        return jobs.filter(job => {
+          if (seen.has(job.job)) return false;
+          seen.add(job.job);
+          return true;
+        });
+      }
+
+      // Load and dedupe jobs
+      let driverJobs = dedupeJobs(JSON.parse(localStorage.getItem(`driver_jobs_${DRIVER_ID}`)) || []);
+      let pendingJobs = dedupeJobs(JSON.parse(localStorage.getItem(`pending_jobs_${DRIVER_ID}`)) || []);
+
       let driverCoords = null;
       let map = null;
       let driverMarker = null;
@@ -732,28 +741,25 @@
       const driverStatus = {};
       const chatMessages = { group: JSON.parse(localStorage.getItem(`chat_group_${DRIVER_ID}`)) || [] };
       const unreadCounts = { group: 0 };
-      let driverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${DRIVER_ID}`)) || [];
-      let pendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${DRIVER_ID}`)) || [];
       let maxRadius = parseFloat(localStorage.getItem('max_radius_km') || '10');
       let isJobActive = false;
-      let currentChat = 'group'; // instead of null
-      // ✅ GLOBAL TIMER REFERENCE (PREVENT LEAKS)
+      let currentChat = 'group';
       let jobTimerInterval = null;
-      // ✅ JOB WAKE LOCK
       let jobWakeLock = null;
-      // ✅ FCM TOKEN TRACKER
       let fcmToken = null;
+
       const statusEl = document.getElementById('status');
       const jobPanel = document.getElementById('jobPanel');
       const pickupLocation = document.getElementById('pickupLocation');
-      const customerName = document.getElementById('customerName'); // 👈 NEW
+      const customerName = document.getElementById('customerName');
       const customerPhone = document.getElementById('customerPhone');
       const menuPanel = document.getElementById('menuPanel');
       const menuContent = document.getElementById('menuContent');
       const menuNavBtns = document.querySelectorAll('.menu-nav-btn');
       const loadingOverlay = document.getElementById('loadingOverlay');
       const micIndicator = document.getElementById('micIndicator');
-      // ===== ENHANCED TAXI MARKER (from v5.1) =====
+
+      // ===== ENHANCED TAXI MARKER =====
       const BLACK_CAB_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 58 36" width="58" height="36">
   <rect x="4" y="14" width="50" height="14" rx="3" ry="3" fill="#000"/>
@@ -779,11 +785,11 @@
           className: 'taxi-marker'
         });
       }
-      // ===== SAVE PENDING JOBS =====
+
       function savePendingJobs() {
         localStorage.setItem(`pending_jobs_${DRIVER_ID}`, JSON.stringify(pendingJobs));
       }
-      // ===== SIMPLE GPS (STABLE) =====
+
       function calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371000;
         const φ1 = (lat1 * Math.PI) / 180;
@@ -793,17 +799,20 @@
         const a = Math.sin(Δφ/2)**2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2)**2;
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       }
+
       function updateDriverMarker(lat, lng, headingValue) {
         if (!driverMarker) return;
         driverMarker.setLatLng([lat, lng]);
         driverMarker.setIcon(createBlackCabIcon(headingValue));
       }
+
       function updateMapCenter(lat, lng) {
         if (!map) return;
         const center = map.getCenter();
         const dist = calculateDistance(center.lat, center.lng, lat, lng);
         if (dist > 50) map.panTo([lat, lng]);
       }
+
       let lastPublish = 0;
       let lastPublishCoords = null;
       function publishLocationThrottled(gpsData) {
@@ -823,7 +832,7 @@
           lastPublishCoords = { lat: gpsData.lat, lng: gpsData.lng };
         }
       }
-      // ===== WAKE LOCK =====
+
       async function requestWakeLock() {
         try {
           if ('wakeLock' in navigator) {
@@ -833,13 +842,14 @@
           console.warn('Wake Lock failed:', err);
         }
       }
+
       function releaseWakeLock() {
         if (wakeLock) {
           wakeLock.release();
           wakeLock = null;
         }
       }
-      // ===== MAP INIT =====
+
       function initMapImmediately() {
         loadingOverlay.style.display = 'none';
         const defaultCenter = [52.4068, -1.5197];
@@ -855,7 +865,7 @@
         statusEl.innerHTML = '<span class="gps-source gps-poor"></span>Map loaded. Getting location...';
         initGPS();
       }
-      // ===== SIMPLE GPS INIT =====
+
       function initGPS() {
         if (!('geolocation' in navigator)) {
           alert("Geolocation not supported.");
@@ -865,7 +875,6 @@
         }
         statusEl.innerHTML = '<span class="gps-source gps-poor"></span>Searching for GPS...';
         requestWakeLock();
-        // ✅ CLEAR EXISTING WATCH TO AVOID DUPLICATES
         if (gpsWatchId) {
           navigator.geolocation.clearWatch(gpsWatchId);
         }
@@ -898,7 +907,6 @@
           },
           err => {
             statusEl.textContent = "GPS error: " + err.message;
-            // ✅ RETRY GPS AFTER 5 SECONDS IF STILL ONLINE
             setTimeout(() => {
               if (driverPresence !== 'offline') {
                 initGPS();
@@ -909,7 +917,7 @@
         );
         connectMQTT();
       }
-      // ===== CLEANUP JOB (MUST BE BEFORE showJobPanel) =====
+
       function cleanupJob() {
         if (jobTimerInterval) {
           clearInterval(jobTimerInterval);
@@ -917,7 +925,7 @@
         }
         jobPanel.style.display = 'none';
         stopVoiceListener();
-        speechSynthesis.cancel(); // ✅ STOP TTS
+        speechSynthesis.cancel();
         currentJob = null;
         isJobActive = false;
         if (pickupMarker) { map.removeLayer(pickupMarker); pickupMarker = null; }
@@ -927,7 +935,7 @@
           jobWakeLock = null;
         }
       }
-      // ===== SHOW JOB PANEL (MUST BE BEFORE processNextJob) =====
+
       function showJobPanel(job) {
         if (jobTimerInterval) {
           clearInterval(jobTimerInterval);
@@ -939,15 +947,15 @@
         currentJob = job;
         jobPanel.style.display = 'block';
         pickupLocation.textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
-        customerName.textContent = job.customerName || 'Not provided'; // 👈 NEW
-        customerPhone.textContent = job.customerPhone || 'Not provided'; // 👈 UPDATED
+        customerName.textContent = job.customerName || 'Not provided';
+        customerPhone.textContent = job.customerPhone || 'Not provided';
         const timerEl = document.getElementById('jobTimer');
         const secondsEl = document.getElementById('timerSeconds');
         timerEl.style.display = 'none';
         if ('speechSynthesis' in window) {
           const utterance = new SpeechSynthesisUtterance(
             `New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`
-          ); // 👈 UPDATED
+          );
           utterance.lang = 'en-GB';
           utterance.rate = 0.9;
           utterance.onend = () => {
@@ -996,25 +1004,24 @@
         }
         requestJobWakeLock();
       }
-      // ===== STRICT FIFO JOB QUEUE =====
+
       function processNextJob() {
         if (isJobActive || pendingJobs.length === 0 || driverPresence !== 'available') return;
         const job = pendingJobs.shift();
         savePendingJobs();
         showJobPanel(job);
       }
-      // ✅ ENHANCED: accept optional job + full cleanup + 2-second delay
+
       function respondToJob(accepted, job = currentJob) {
         if (!job || !client) return;
-        // ✅ FULL CLEANUP ON MANUAL ACTION
         if (jobTimerInterval) {
           clearInterval(jobTimerInterval);
           jobTimerInterval = null;
         }
         stopVoiceListener();
-        speechSynthesis.cancel(); // ✅ STOP TTS IMMEDIATELY
+        speechSynthesis.cancel();
+
         if (accepted) {
-          // ✅ PUBLISH TO /status INSTEAD OF /accept
           const payload = {
             job: job.job,
             driver: DRIVER_ID,
@@ -1032,52 +1039,50 @@
           statusEl.innerHTML = '❌ Job rejected';
           updateJobStatus(job.job, 'rejected');
         }
-        // If this was the current job, clean up panel
+
         if (job === currentJob) {
           cleanupJob();
-          // ✅ DELAY NEXT JOB BY 2 SECONDS TO PREVENT CLASHES
-          setTimeout(() => {
-            processNextJob();
-          }, 2000);
+          setTimeout(() => processNextJob(), 2000);
         } else {
-          // ✅ AUTO-OPEN JOB PANEL FOR BID FROM HISTORY
           showJobPanel(job);
         }
       }
-      // ===== MENU NAVIGATION =====
-      function toggleMenu() {
-        isMenuOpen = !isMenuOpen;
-        if (isMenuOpen) {
-          menuPanel.classList.add('active');
-          renderCurrentView();
+
+      function saveJobs() {
+        localStorage.setItem(`driver_jobs_${DRIVER_ID}`, JSON.stringify(driverJobs));
+      }
+
+      function addJobToHistory(jobData, initialStatus = 'processing') {
+        const job = {
+          ...jobData,
+          status: initialStatus,
+          timestamp: Date.now(),
+          driver: DRIVER_ID
+        };
+        const existingIndex = driverJobs.findIndex(j => j.job === job.job);
+        if (existingIndex >= 0) {
+          driverJobs[existingIndex] = job;
         } else {
-          menuPanel.classList.remove('active');
-        }
-      }
-      function switchView(view) {
-        currentView = view;
-        menuNavBtns.forEach(btn => {
-          if (btn.dataset.view === view) {
-            btn.classList.add('active');
-          } else {
-            btn.classList.remove('active');
+          driverJobs.unshift(job);
+          if (driverJobs.length > 50) {
+            driverJobs = driverJobs.slice(0, 50);
           }
-        });
-        renderCurrentView();
+        }
+        saveJobs();
+        if (isMenuOpen && currentView === 'jobHistory') renderJobHistory();
+        if (isMenuOpen && currentView === 'currentJob') renderCurrentJob();
       }
-      function renderCurrentView() {
-        if (!isMenuOpen) return;
-        if (currentView === 'currentJob') {
-          renderCurrentJob();
-        } else if (currentView === 'jobHistory') {
-          renderJobHistory();
-        } else if (currentView === 'chat') {
-          renderChatView();
-        } else if (currentView === 'settings') {
-          renderSettingsView();
+
+      function updateJobStatus(jobId, status) {
+        const jobIndex = driverJobs.findIndex(j => j.job === jobId);
+        if (jobIndex >= 0) {
+          driverJobs[jobIndex].status = status;
+          saveJobs();
+          if (isMenuOpen && currentView === 'jobHistory') renderJobHistory();
+          if (isMenuOpen && currentView === 'currentJob') renderCurrentJob();
         }
       }
-      // ===== CURRENT JOB VIEW WITH NAV/CALL =====
+
       function renderCurrentJob() {
         const allocatedJobs = driverJobs.filter(job => job.status === 'allocated');
         if (allocatedJobs.length === 0) {
@@ -1107,7 +1112,7 @@
             </div>
             <div class="job-detail">
               <div class="job-label">Customer Phone</div>
-              <div class="job-value">📞 ${current.customerPhone || '—'}</div>
+              <div class="job-value">📞 ${current.customerPhone}</div>
             </div>
             <div class="job-detail">
               <div class="job-label">Pickup Location</div>
@@ -1130,14 +1135,12 @@
             <button class="settings-btn" onclick="markJobCompleted('${current.job}')">Mark as Completed</button>
           </div>
         `;
-        // Navigation button handler
         document.getElementById('navToPickupBtn').addEventListener('click', () => {
           const url = `https://www.google.com/maps/dir/?api=1&destination=${current.lat},${current.lng}`;
           window.open(url, '_blank');
         });
-        // Call button handler
         document.getElementById('callCustomerBtn').addEventListener('click', () => {
-          const phone = current.customerPhone.replace(/\D/g, ''); // Remove non-digits
+          const phone = current.customerPhone.replace(/\D/g, '');
           if (phone) {
             window.location.href = `tel:${phone}`;
           } else {
@@ -1145,39 +1148,7 @@
           }
         });
       }
-      // ===== JOB HISTORY MANAGEMENT =====
-      function saveJobs() {
-        localStorage.setItem(`driver_jobs_${DRIVER_ID}`, JSON.stringify(driverJobs));
-      }
-      function addJobToHistory(jobData, initialStatus = 'processing') {
-        const job = {
-          ...jobData,
-          status: initialStatus,
-          timestamp: Date.now(),
-          driver: DRIVER_ID
-        };
-        const existingIndex = driverJobs.findIndex(j => j.job === job.job);
-        if (existingIndex >= 0) {
-          driverJobs[existingIndex] = job;
-        } else {
-          driverJobs.unshift(job);
-          if (driverJobs.length > 50) {
-            driverJobs = driverJobs.slice(0, 50);
-          }
-        }
-        saveJobs();
-        if (isMenuOpen && currentView === 'jobHistory') renderJobHistory();
-        if (isMenuOpen && currentView === 'currentJob') renderCurrentJob();
-      }
-      function updateJobStatus(jobId, status) {
-        const jobIndex = driverJobs.findIndex(j => j.job === jobId);
-        if (jobIndex >= 0) {
-          driverJobs[jobIndex].status = status;
-          saveJobs();
-          if (isMenuOpen && currentView === 'jobHistory') renderJobHistory();
-          if (isMenuOpen && currentView === 'currentJob') renderCurrentJob();
-        }
-      }
+
       function renderJobHistory() {
         menuContent.innerHTML = '';
         if (driverJobs.length === 0) {
@@ -1195,7 +1166,6 @@
           const dateStr = date.toLocaleDateString();
           let actionButtons = '';
           if (job.status === 'queued') {
-            // ✅ ADDED: Bid + View buttons
             actionButtons = `
               <div style="display:flex; gap:8px; margin-top:12px;">
                 <button class="settings-btn" style="flex:1; padding:8px; font-size:14px;" data-action="view" data-jobid="${job.job}">
@@ -1211,7 +1181,7 @@
             <div class="job-id">${job.job}</div>
             <div class="job-pub">Pub: ${job.pubName}</div>
             <div class="job-phone">👤 ${job.customerName || '—'}</div>
-            <div class="job-phone">📞 ${job.customerPhone || '—'}</div>
+            <div class="job-phone">📞 ${job.customerPhone}</div>
             <div class="job-phone">📍 ${job.lat.toFixed(5)}, ${job.lng.toFixed(5)}</div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
               <span class="job-status status-${job.status}">${job.status.toUpperCase()}</span>
@@ -1222,12 +1192,10 @@
           jobsContainer.appendChild(jobEl);
         });
         menuContent.appendChild(jobsContainer);
-        // ✅ CLICK HANDLERS FOR Bid/View
         menuContent.querySelectorAll('[data-action]').forEach(btn => {
           btn.addEventListener('click', (e) => {
             const action = e.target.dataset.action;
             const jobId = e.target.dataset.jobid;
-            // ✅ FIX: Look in BOTH pendingJobs AND driverJobs
             const job = pendingJobs.find(j => j.job === jobId) || 
                         driverJobs.find(j => j.job === jobId && j.status === 'queued');
             if (!job) {
@@ -1241,14 +1209,13 @@
               }
               showJobPanel(job);
             } else if (action === 'bid') {
-              // ✅ AUTO-BID + OPEN PANEL
               respondToJob(true, job);
             }
           });
         });
         attachSwipeToDelete();
       }
-      // ===== SWIPE-TO-DELETE FUNCTION =====
+
       function attachSwipeToDelete() {
         const items = document.querySelectorAll('#jobHistoryContent .job-item');
         items.forEach(item => {
@@ -1292,11 +1259,9 @@
               }
             }
           };
-          // Touch
           item.addEventListener('touchstart', e => handleStart(e.touches[0].clientX));
           item.addEventListener('touchmove', e => handleMove(e.touches[0].clientX));
           item.addEventListener('touchend', handleEnd);
-          // Mouse fallback
           item.addEventListener('mousedown', e => handleStart(e.clientX));
           item.addEventListener('mousemove', e => handleMove(e.clientX));
           item.addEventListener('mouseup', handleEnd);
@@ -1310,9 +1275,8 @@
           item.addEventListener('selectstart', e => e.preventDefault());
         });
       }
-      // ===== CHAT FUNCTIONS =====
+
       function renderChatView() {
-        // Auto-select group chat if none is active
         if (!currentChat) {
           currentChat = 'group';
           unreadCounts.group = 0;
@@ -1337,7 +1301,6 @@
             </div>
           </div>
         `;
-        // Chat list click handler
         const chatListEl = document.getElementById('chatList');
         if (chatListEl) {
           chatListEl.addEventListener('click', (e) => {
@@ -1348,9 +1311,9 @@
             }
           });
         }
-        // Immediately open group chat
         openChat('group');
       }
+
       function openChat(chatId) {
         currentChat = chatId;
         const chatList = document.getElementById('chatList');
@@ -1359,13 +1322,11 @@
         if (chatList) chatList.style.display = 'none';
         if (chatMessages) chatMessages.style.display = 'flex';
         if (chatInputContainer) chatInputContainer.style.display = 'flex';
-        // Reset unread count
         unreadCounts[chatId] = 0;
         updateChatList();
         renderChatMessages();
         const chatInput = document.getElementById('chatInput');
         if (chatInput) chatInput.focus();
-        // Attach input handlers only once (inside openChat to ensure elements exist)
         const sendBtn = document.getElementById('sendBtn');
         if (sendBtn) {
           sendBtn.onclick = sendChatMessage;
@@ -1376,13 +1337,13 @@
           };
         }
       }
+
       function renderChatMessages() {
         const chatMessagesEl = document.getElementById('chatMessages');
         if (!chatMessagesEl) return;
         chatMessagesEl.innerHTML = '';
         const messages = chatMessages[currentChat] || [];
         messages.forEach(msg => {
-          // 🔒 Guard against missing fields
           const text = typeof msg.text === 'string' ? msg.text : '[No message]';
           const sender = typeof msg.sender === 'string' ? msg.sender : 'unknown';
           const time = msg.timestamp
@@ -1401,6 +1362,7 @@
         });
         chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
       }
+
       function updateChatList() {
         const chatList = document.getElementById('chatList');
         if (!chatList) return;
@@ -1431,6 +1393,7 @@
         });
         chatList.innerHTML = html;
       }
+
       function sendChatMessage() {
         const chatInput = document.getElementById('chatInput');
         if (!chatInput || !currentChat) return;
@@ -1445,36 +1408,33 @@
         addMessage(currentChat, DRIVER_ID, text);
         chatInput.value = '';
       }
+
       function addMessage(chatId, sender, text, timestamp = Date.now()) {
         if (!chatMessages[chatId]) {
           chatMessages[chatId] = [];
           unreadCounts[chatId] = 0;
         }
         chatMessages[chatId].push({ sender, text, timestamp });
-        // Keep only last 50 messages
         if (chatMessages[chatId].length > 50) {
           chatMessages[chatId] = chatMessages[chatId].slice(-50);
         }
-        // Increment unread if not viewing this chat
         if (!isMenuOpen || currentView !== 'chat' || currentChat !== chatId) {
           unreadCounts[chatId] = (unreadCounts[chatId] || 0) + 1;
         }
         saveChatMessages();
         updateChatList();
-        // Auto-render if user is in the chat
         if (isMenuOpen && currentView === 'chat' && currentChat === chatId) {
           renderChatMessages();
         }
       }
+
       function saveChatMessages() {
-        // Always save group chat
         localStorage.setItem(`chat_group_${DRIVER_ID}`, JSON.stringify(chatMessages.group || []));
-        // Save current chat if it's not group (optional, but safe)
         if (currentChat && currentChat !== 'group') {
           localStorage.setItem(`chat_${currentChat}_${DRIVER_ID}`, JSON.stringify(chatMessages[currentChat] || []));
         }
       }
-      // ===== SETTINGS VIEW =====
+
       function renderSettingsView() {
         menuContent.innerHTML = `
           <div class="settings-group">
@@ -1537,14 +1497,14 @@
           }
         });
       }
-      // ===== MARK JOB COMPLETED =====
+
       window.markJobCompleted = function(jobId) {
         const payload = { job: jobId, driver: DRIVER_ID, status: "completed", ts: Date.now() };
         client.publish(`jobs/${jobId}/status`, JSON.stringify(payload));
         updateJobStatus(jobId, 'completed');
         statusEl.innerHTML = '<span class="gps-source gps-gps"></span>✅ Job marked as completed';
       };
-      // ===== GET COLOR FOR DRIVER =====
+
       function getColorForDriver(driverId) {
         let hash = 0;
         for (let i = 0; i < driverId.length; i++) {
@@ -1553,7 +1513,7 @@
         const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
         return "#" + "00000".substring(0, 6 - c.length) + c;
       }
-      // ===== VOICE LISTENER WITH MIC INDICATOR =====
+
       let speechRecognition = null;
       let retryCount = 0;
       const MAX_RETRIES = 5;
@@ -1633,36 +1593,33 @@
         speechSynthesis.cancel();
         speechSynthesis.speak(utterance);
       }
-      // ===== DRIVER PRESENCE MANAGEMENT =====
+
       function setDriverPresence(status) {
         if (!['available', 'busy', 'offline'].includes(status)) return;
         driverPresence = status;
         localStorage.setItem('driver_presence', status);
-        // Update caption
         const caption = document.getElementById('statusCaption');
         caption.className = `status-${status}`;
         caption.innerHTML = `
           <span class="status-dot"></span> 
           ${status.charAt(0).toUpperCase() + status.slice(1)}
         `;
-        // Stop GPS if offline
         if (status === 'offline' && gpsWatchId) {
           navigator.geolocation.clearWatch(gpsWatchId);
           gpsWatchId = null;
         } else if (status !== 'offline' && !gpsWatchId) {
-          // ✅ RESTART GPS WHEN COMING ONLINE
           initGPS();
         } else if (status !== 'offline' && driverCoords) {
-          // ✅ PUBLISH CURRENT LOCATION ON STATUS CHANGE
           publishLocationThrottled(driverCoords);
         }
       }
+
       function handleLogOff() {
         setDriverPresence('offline');
         document.getElementById('statusDropdown').style.display = 'none';
         statusEl.innerHTML = '<span class="gps-source gps-poor"></span>✅ You are now logged off (offline)';
       }
-      // ===== MQTT =====
+
       function connectMQTT() {
         statusEl.innerHTML = `<span class="gps-source gps-poor"></span>Connecting to MQTT as: ${DRIVER_ID}`;
         client = mqtt.connect(MQTT_BROKER, {
@@ -1677,20 +1634,16 @@
           client.subscribe(CHAT_GROUP_TOPIC);
           client.subscribe(CHAT_PRIVATE_TOPIC);
           client.subscribe(JOB_RESULT_TOPIC);
-          // ✅ Publish FCM token on every connect
           publishFcmToken();
-          // Publish initial status
           client.publish(`drivers/${DRIVER_ID}/status`, JSON.stringify({
             driver: DRIVER_ID,
             status: driverPresence,
             ts: Date.now()
           }));
-          // ✅ PUBLISH CURRENT LOCATION ON RECONNECT
           if (driverCoords) {
             publishLocationThrottled(driverCoords);
           }
           setInterval(cleanupOldDrivers, 30000);
-          // Auto-clean expired pending jobs
           setInterval(() => {
             const now = Date.now();
             let changed = false;
@@ -1709,22 +1662,12 @@
           try {
             const data = JSON.parse(message.toString());
             if (topic.startsWith("pubs/requests/")) {
-              // ✅ RESPECT DRIVER PRESENCE
-              if (driverPresence === 'offline') return;
-              // Radius filter
-              if (driverCoords) {
-                const dist = calculateDistance(driverCoords.lat, driverCoords.lng, data.lat, data.lng);
-                if (dist > maxRadius * 1000) {
-                  client.publish(`jobs/${data.job}/status`, JSON.stringify({
-                    job: data.job,
-                    driver: DRIVER_ID,
-                    status: "rejected",
-                    reason: "out_of_radius",
-                    ts: Date.now()
-                  }));
-                  addJobToHistory(data, 'rejected');
-                  return;
-                }
+              const jobId = data.job;
+              const isDuplicate = pendingJobs.some(p => p.job === jobId) || 
+                                 driverJobs.some(j => j.job === jobId);
+              if (isDuplicate) {
+                console.log("⏭️ Skipping duplicate job:", jobId);
+                return;
               }
               pendingJobs.push({ ...data, receivedAt: Date.now() });
               savePendingJobs();
@@ -1803,7 +1746,6 @@
                 }
               }
             }
-            // ✅ FIXED: Allow 1:1 private messages from other drivers
             if (topic === CHAT_GROUP_TOPIC) {
               if (data.sender !== DRIVER_ID) {
                 addMessage('group', data.sender, data.text, data.timestamp);
@@ -1811,7 +1753,6 @@
             }
             if (topic.startsWith(`chat/private/${DRIVER_ID}/`)) {
               const sender = topic.split('/')[2];
-              // ✅ v6.2: Only skip if it's our own message sent to ourselves (shouldn't happen)
               if (sender !== DRIVER_ID) {
                 addMessage(sender, data.sender, data.text, data.timestamp);
               }
@@ -1838,6 +1779,7 @@
           statusEl.innerHTML = '<span class="gps-source gps-poor"></span>❌ MQTT Error: ' + err.message;
         });
       }
+
       function cleanupOldDrivers() {
         const now = Date.now();
         Object.keys(otherDrivers).forEach(id => {
@@ -1848,8 +1790,8 @@
         });
         updateChatList();
       }
-      // ===== FCM TOKEN REQUEST (FIXED) =====
-      async function requestFCMToken() {
+
+     async function requestFCMToken() {
         try {
           const permission = await Notification.requestPermission();
           if (permission !== 'granted') return null;
