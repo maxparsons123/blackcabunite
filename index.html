@@ -586,6 +586,8 @@
     <div id="jobInfo">
       <div class="job-info-label">Pickup Location</div>
       <div class="job-info-value" id="pickupLocation">Loading...</div>
+      <div class="job-info-label" style="margin-top:12px;">Customer Name</div>
+      <div class="job-info-value" id="customerName">Loading...</div>
       <div class="job-info-label" style="margin-top:12px;">Customer Phone</div>
       <div class="job-info-value" id="customerPhone">Loading...</div>
       <div id="jobTimer">⏳ Expires in: <span id="timerSeconds">30</span>s</div>
@@ -744,6 +746,7 @@
       const statusEl = document.getElementById('status');
       const jobPanel = document.getElementById('jobPanel');
       const pickupLocation = document.getElementById('pickupLocation');
+      const customerName = document.getElementById('customerName'); // 👈 NEW
       const customerPhone = document.getElementById('customerPhone');
       const menuPanel = document.getElementById('menuPanel');
       const menuContent = document.getElementById('menuContent');
@@ -936,14 +939,15 @@
         currentJob = job;
         jobPanel.style.display = 'block';
         pickupLocation.textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
-        customerPhone.textContent = job.customerPhone;
+        customerName.textContent = job.customerName || 'Not provided'; // 👈 NEW
+        customerPhone.textContent = job.customerPhone || 'Not provided'; // 👈 UPDATED
         const timerEl = document.getElementById('jobTimer');
         const secondsEl = document.getElementById('timerSeconds');
         timerEl.style.display = 'none';
         if ('speechSynthesis' in window) {
           const utterance = new SpeechSynthesisUtterance(
-            `New job! Pickup at ${job.pubName}. Customer phone: ${job.customerPhone}`
-          );
+            `New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`
+          ); // 👈 UPDATED
           utterance.lang = 'en-GB';
           utterance.rate = 0.9;
           utterance.onend = () => {
@@ -1010,14 +1014,16 @@
         stopVoiceListener();
         speechSynthesis.cancel(); // ✅ STOP TTS IMMEDIATELY
         if (accepted) {
+          // ✅ PUBLISH TO /status INSTEAD OF /accept
           const payload = {
             job: job.job,
             driver: DRIVER_ID,
+            status: "bidding",
             lat: driverCoords?.lat || job.lat,
             lng: driverCoords?.lng || job.lng,
-            timestamp: Date.now()
+            ts: Date.now()
           };
-          client.publish(`jobs/${job.job}/accept`, JSON.stringify(payload));
+          client.publish(`jobs/${job.job}/status`, JSON.stringify(payload));
           statusEl.innerHTML = '✅ Bid sent';
           updateJobStatus(job.job, 'bidding');
         } else {
@@ -1096,8 +1102,12 @@
               <div class="job-value">${current.pubName}</div>
             </div>
             <div class="job-detail">
+              <div class="job-label">Customer Name</div>
+              <div class="job-value">👤 ${current.customerName || '—'}</div>
+            </div>
+            <div class="job-detail">
               <div class="job-label">Customer Phone</div>
-              <div class="job-value">📞 ${current.customerPhone}</div>
+              <div class="job-value">📞 ${current.customerPhone || '—'}</div>
             </div>
             <div class="job-detail">
               <div class="job-label">Pickup Location</div>
@@ -1200,7 +1210,8 @@
           jobEl.innerHTML = `
             <div class="job-id">${job.job}</div>
             <div class="job-pub">Pub: ${job.pubName}</div>
-            <div class="job-phone">📞 ${job.customerPhone}</div>
+            <div class="job-phone">👤 ${job.customerName || '—'}</div>
+            <div class="job-phone">📞 ${job.customerPhone || '—'}</div>
             <div class="job-phone">📍 ${job.lat.toFixed(5)}, ${job.lng.toFixed(5)}</div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
               <span class="job-status status-${job.status}">${job.status.toUpperCase()}</span>
@@ -1216,16 +1227,13 @@
           btn.addEventListener('click', (e) => {
             const action = e.target.dataset.action;
             const jobId = e.target.dataset.jobid;
-            
             // ✅ FIX: Look in BOTH pendingJobs AND driverJobs
             const job = pendingJobs.find(j => j.job === jobId) || 
                         driverJobs.find(j => j.job === jobId && j.status === 'queued');
-            
             if (!job) {
               alert("Job no longer available.");
               return;
             }
-            
             if (action === 'view') {
               if (isJobActive) {
                 alert("Please finish the current job first.");
