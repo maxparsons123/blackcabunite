@@ -704,7 +704,6 @@
       }
       document.body.addEventListener('click', initTTS, { once: true });
       document.body.addEventListener('touchstart', initTTS, { once: true });
-
       const MQTT_BROKER = "wss://broker.hivemq.com:8884/mqtt";
       const REQUEST_TOPIC = "pubs/requests/+";
       const LOCATION_TOPIC = `drivers/${DRIVER_ID}/location`;
@@ -712,7 +711,6 @@
       const CHAT_GROUP_TOPIC = "chat/group";
       const CHAT_PRIVATE_TOPIC = `chat/private/${DRIVER_ID}/+`;
       const JOB_RESULT_TOPIC = `jobs/+/result/${DRIVER_ID}`;
-
       // ===== DEDUPLICATION HELPER =====
       function dedupeJobs(jobs) {
         const seen = new Set();
@@ -722,11 +720,9 @@
           return true;
         });
       }
-
       // Load and dedupe jobs
       let driverJobs = dedupeJobs(JSON.parse(localStorage.getItem(`driver_jobs_${DRIVER_ID}`)) || []);
       let pendingJobs = dedupeJobs(JSON.parse(localStorage.getItem(`pending_jobs_${DRIVER_ID}`)) || []);
-
       let driverCoords = null;
       let map = null;
       let driverMarker = null;
@@ -747,7 +743,6 @@
       let jobTimerInterval = null;
       let jobWakeLock = null;
       let fcmToken = null;
-
       const statusEl = document.getElementById('status');
       const jobPanel = document.getElementById('jobPanel');
       const pickupLocation = document.getElementById('pickupLocation');
@@ -785,11 +780,9 @@
           className: 'taxi-marker'
         });
       }
-
       function savePendingJobs() {
         localStorage.setItem(`pending_jobs_${DRIVER_ID}`, JSON.stringify(pendingJobs));
       }
-
       function calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371000;
         const φ1 = (lat1 * Math.PI) / 180;
@@ -799,20 +792,17 @@
         const a = Math.sin(Δφ/2)**2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2)**2;
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       }
-
       function updateDriverMarker(lat, lng, headingValue) {
         if (!driverMarker) return;
         driverMarker.setLatLng([lat, lng]);
         driverMarker.setIcon(createBlackCabIcon(headingValue));
       }
-
       function updateMapCenter(lat, lng) {
         if (!map) return;
         const center = map.getCenter();
         const dist = calculateDistance(center.lat, center.lng, lat, lng);
         if (dist > 50) map.panTo([lat, lng]);
       }
-
       let lastPublish = 0;
       let lastPublishCoords = null;
       function publishLocationThrottled(gpsData) {
@@ -832,7 +822,6 @@
           lastPublishCoords = { lat: gpsData.lat, lng: gpsData.lng };
         }
       }
-
       async function requestWakeLock() {
         try {
           if ('wakeLock' in navigator) {
@@ -842,14 +831,12 @@
           console.warn('Wake Lock failed:', err);
         }
       }
-
       function releaseWakeLock() {
         if (wakeLock) {
           wakeLock.release();
           wakeLock = null;
         }
       }
-
       function initMapImmediately() {
         loadingOverlay.style.display = 'none';
         const defaultCenter = [52.4068, -1.5197];
@@ -865,7 +852,6 @@
         statusEl.innerHTML = '<span class="gps-source gps-poor"></span>Map loaded. Getting location...';
         initGPS();
       }
-
       function initGPS() {
         if (!('geolocation' in navigator)) {
           alert("Geolocation not supported.");
@@ -918,6 +904,161 @@
         connectMQTT();
       }
 
+      // ===== ROBUST VOICE INTERACTION (STT + TTS) =====
+      let speechRecognition = null;
+      let isSpeaking = false;
+      let voiceAttemptCount = 0;
+      const MAX_VOICE_ATTEMPTS = 3;
+      const LISTEN_TIMEOUT_MS = 8000;
+      const TTS_TO_MIC_DELAY_MS = 600;
+
+      function showMicIndicator() {
+        micIndicator.style.display = 'block';
+      }
+
+      function hideMicIndicator() {
+        micIndicator.style.display = 'none';
+      }
+
+      function speakFeedback(message, onDone = null) {
+        if (!('speechSynthesis' in window)) {
+          if (onDone) setTimeout(onDone, 100);
+          return;
+        }
+
+        isSpeaking = true;
+        stopVoiceListener();
+
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.lang = 'en-GB';
+        utterance.rate = 0.9;
+
+        utterance.onend = () => {
+          isSpeaking = false;
+          if (onDone) setTimeout(onDone, TTS_TO_MIC_DELAY_MS);
+        };
+
+        utterance.onerror = () => {
+          isSpeaking = false;
+          if (onDone) setTimeout(onDone, TTS_TO_MIC_DELAY_MS);
+        };
+
+        speechSynthesis.cancel();
+        speechSynthesis.speak(utterance);
+      }
+
+      function startVoiceListener() {
+        if (isSpeaking || speechRecognition) return;
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          console.warn("SpeechRecognition not supported");
+          return;
+        }
+
+        speechRecognition = new SpeechRecognition();
+        speechRecognition.lang = 'en-US';
+        speechRecognition.continuous = false;
+        speechRecognition.interimResults = false;
+
+        let timeoutId = null;
+
+        speechRecognition.onstart = () => {
+          showMicIndicator();
+          timeoutId = setTimeout(() => {
+            if (speechRecognition) speechRecognition.stop();
+          }, LISTEN_TIMEOUT_MS);
+        };
+
+        speechRecognition.onresult = (event) => {
+          clearTimeout(timeoutId);
+          const transcript = event.results[0][0].transcript.toLowerCase().trim();
+          console.log("🎤 Heard:", transcript);
+
+          if (/\baccept\b/.test(transcript) && !/\breject\b/.test(transcript)) {
+            voiceAttemptCount = 0;
+            respondToJob(true);
+            speakFeedback("Job accepted. Thank you.");
+          } else if (/\breject\b/.test(transcript)) {
+            voiceAttemptCount = 0;
+            respondToJob(false);
+            speakFeedback("Job rejected. Understood.");
+          } else {
+            voiceAttemptCount++;
+            stopVoiceListener();
+            promptForVoiceResponse();
+          }
+        };
+
+        speechRecognition.onerror = (e) => {
+          clearTimeout(timeoutId);
+          console.error("Voice error:", e.error);
+          stopVoiceListener();
+          voiceAttemptCount++;
+          if (voiceAttemptCount < MAX_VOICE_ATTEMPTS) {
+            setTimeout(promptForVoiceResponse, 1000);
+          } else {
+            speakFeedback("Voice system error. Please use the buttons.");
+          }
+        };
+
+        speechRecognition.onend = () => {
+          clearTimeout(timeoutId);
+          hideMicIndicator();
+          speechRecognition = null;
+          if (isJobActive && jobPanel.style.display === 'block' && voiceAttemptCount > 0 && voiceAttemptCount < MAX_VOICE_ATTEMPTS) {
+            setTimeout(promptForVoiceResponse, 800);
+          }
+        };
+
+        try {
+          speechRecognition.start();
+        } catch (err) {
+          console.error("Failed to start speech recognition:", err);
+          speechRecognition = null;
+          voiceAttemptCount++;
+          if (voiceAttemptCount < MAX_VOICE_ATTEMPTS) {
+            setTimeout(promptForVoiceResponse, 1000);
+          }
+        }
+      }
+
+      function stopVoiceListener() {
+        hideMicIndicator();
+        if (speechRecognition) {
+          speechRecognition.abort();
+          speechRecognition = null;
+        }
+      }
+
+      function promptForVoiceResponse() {
+        if (isSpeaking || !isJobActive) return;
+
+        if (voiceAttemptCount === 0) {
+          setTimeout(startVoiceListener, TTS_TO_MIC_DELAY_MS);
+        } else if (voiceAttemptCount < MAX_VOICE_ATTEMPTS) {
+          speakFeedback("Did not hear you. Please say ‘accept’ or ‘reject’.", () => {
+            startVoiceListener();
+          });
+        } else {
+          speakFeedback("Let me repeat the job.", () => {
+            const job = currentJob;
+            if (job) {
+              const utterance = new SpeechSynthesisUtterance(
+                `Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`
+              );
+              utterance.lang = 'en-GB';
+              utterance.rate = 0.9;
+              utterance.onend = () => {
+                voiceAttemptCount = 0;
+                setTimeout(promptForVoiceResponse, TTS_TO_MIC_DELAY_MS);
+              };
+              speechSynthesis.speak(utterance);
+            }
+          });
+        }
+      }
+
       function cleanupJob() {
         if (jobTimerInterval) {
           clearInterval(jobTimerInterval);
@@ -952,6 +1093,7 @@
         const timerEl = document.getElementById('jobTimer');
         const secondsEl = document.getElementById('timerSeconds');
         timerEl.style.display = 'none';
+
         if ('speechSynthesis' in window) {
           const utterance = new SpeechSynthesisUtterance(
             `New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`
@@ -972,7 +1114,9 @@
                 processNextJob();
               }
             }, 1000);
-            startVoiceListener();
+            // ✅ Use new robust voice system
+            voiceAttemptCount = 0;
+            promptForVoiceResponse();
           };
           speechSynthesis.cancel();
           speechSynthesis.speak(utterance);
@@ -990,8 +1134,11 @@
               processNextJob();
             }
           }, 1000);
-          startVoiceListener();
+          // ✅ Fallback also uses new system
+          voiceAttemptCount = 0;
+          promptForVoiceResponse();
         }
+
         async function requestJobWakeLock() {
           if ('wakeLock' in navigator) {
             try {
@@ -1020,7 +1167,6 @@
         }
         stopVoiceListener();
         speechSynthesis.cancel();
-
         if (accepted) {
           const payload = {
             job: job.job,
@@ -1039,7 +1185,6 @@
           statusEl.innerHTML = '❌ Job rejected';
           updateJobStatus(job.job, 'rejected');
         }
-
         if (job === currentJob) {
           cleanupJob();
           setTimeout(() => processNextJob(), 2000);
@@ -1514,86 +1659,6 @@
         return "#" + "00000".substring(0, 6 - c.length) + c;
       }
 
-      let speechRecognition = null;
-      let retryCount = 0;
-      const MAX_RETRIES = 5;
-      function showMicIndicator() {
-        micIndicator.style.display = 'block';
-      }
-      function hideMicIndicator() {
-        micIndicator.style.display = 'none';
-      }
-      function startVoiceListener() {
-        if (speechRecognition) return;
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-          console.warn("SpeechRecognition not supported");
-          return;
-        }
-        retryCount = 0;
-        speechRecognition = new SpeechRecognition();
-        speechRecognition.lang = 'en-US';
-        speechRecognition.continuous = false;
-        speechRecognition.interimResults = false;
-        speechRecognition.onstart = () => showMicIndicator();
-        speechRecognition.onresult = (event) => {
-          const transcript = event.results[0][0].transcript.toLowerCase().trim();
-          if (/\baccept\b/.test(transcript) && !/\breject\b/.test(transcript)) {
-            respondToJob(true);
-            speakFeedback("Job accepted. Thank you.");
-          } else if (/\breject\b/.test(transcript)) {
-            respondToJob(false);
-            speakFeedback("Job rejected. Understood.");
-          }
-        };
-        speechRecognition.onerror = (e) => {
-          if (e.error !== 'aborted') {
-            console.error("Voice error:", e.error);
-            retryCount++;
-            if (retryCount > MAX_RETRIES) speechRecognition = null;
-          }
-        };
-        speechRecognition.onend = () => {
-          hideMicIndicator();
-          if (isJobActive && jobPanel.style.display === 'block') {
-            setTimeout(() => {
-              if (isJobActive && jobPanel.style.display === 'block') {
-                startVoiceListener();
-              }
-            }, 500);
-          } else {
-            speechRecognition = null;
-          }
-        };
-        try {
-          speechRecognition.start();
-        } catch (err) {
-          console.error("Failed to start SpeechRecognition:", err);
-          speechRecognition = null;
-        }
-      }
-      function stopVoiceListener() {
-        hideMicIndicator();
-        if (speechRecognition) {
-          speechRecognition.abort();
-          speechRecognition = null;
-        }
-      }
-      function speakFeedback(message) {
-        if (!('speechSynthesis' in window)) return;
-        const utterance = new SpeechSynthesisUtterance(message);
-        utterance.lang = 'en-GB';
-        utterance.rate = 0.9;
-        if (speechRecognition) speechRecognition.abort();
-        utterance.onend = () => {
-          if (jobPanel.style.display === 'block') {
-            startVoiceListener();
-          }
-        };
-        speechSynthesis.cancel();
-        speechSynthesis.speak(utterance);
-      }
-
       function setDriverPresence(status) {
         if (!['available', 'busy', 'offline'].includes(status)) return;
         driverPresence = status;
@@ -1791,7 +1856,7 @@
         updateChatList();
       }
 
- async function requestFCMToken() {
+      async function requestFCMToken() {
         try {
           const permission = await Notification.requestPermission();
           if (permission !== 'granted') {
@@ -1805,7 +1870,6 @@
 
           if (fcmToken) {
             console.log('FCM Token:', fcmToken);
-            // Optionally send to your server or MQTT
             publishFcmToken();
           } else {
             console.warn('No FCM token retrieved');
@@ -1907,4 +1971,3 @@
   </script>
 </body>
 </html>
-
