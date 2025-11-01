@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v6.4</title>
+  <title>Black Cab Unite v7.0</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <!-- PWA -->
@@ -95,6 +95,39 @@
     #menuBtn:active {
       transform: scale(0.95);
     }
+
+    /* === NEW: Passenger Preset Popup === */
+    #passengerPopup {
+      display: none;
+      position: fixed;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.85);
+      color: white;
+      padding: 18px 20px;
+      border-radius: 16px;
+      font-size: 16px;
+      max-width: 300px;
+      text-align: center;
+      z-index: 3000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .replyBtn {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      flex: 1;
+      margin: 0 4px;
+    }
+    .replyBtn:nth-child(2) {
+      background: #1f6feb;
+    }
+
     /* Status bar at bottom */
     #status { 
       position: absolute;
@@ -545,7 +578,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v6.4</div>
+      <div id="appTitle">Black Cab Unite v7.0</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -645,6 +678,16 @@
       ">Close</button>
     </div>
   </div>
+
+  <!-- === NEW: Passenger Preset Popup === -->
+  <div id="passengerPopup">
+    <div id="passengerPopupMsg">Passenger message...</div>
+    <div style="display:flex; justify-content:center; gap:10px; margin-top:12px;">
+      <button id="presetReply1" class="replyBtn">On my way</button>
+      <button id="presetReply2" class="replyBtn">Arrived</button>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
@@ -711,6 +754,55 @@
       const CHAT_GROUP_TOPIC = "chat/group";
       const CHAT_PRIVATE_TOPIC = `chat/private/${DRIVER_ID}/+`;
       const JOB_RESULT_TOPIC = `jobs/+/result/${DRIVER_ID}`;
+      // ===== NEW: PASSENGER PRESET HANDLING =====
+      function handlePassengerPreset(data) {
+        console.log("💬 Passenger preset received:", data);
+
+        const preset = data?.presetType || "Unknown";
+        const passengerMsg =
+          preset === "where_are_you" ? "Passenger asks: Where are you?" :
+          preset === "cancel_ride" ? "Passenger wants to cancel the ride." :
+          preset === "call_driver" ? "Passenger is trying to call you." :
+          `Passenger message: ${preset}`;
+
+        // ✅ Voice announce
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(passengerMsg);
+          utterance.lang = 'en-GB';
+          utterance.rate = 1;
+          speechSynthesis.cancel();
+          speechSynthesis.speak(utterance);
+        }
+
+        // ✅ Visual popup
+        showPassengerPopup(passengerMsg, data);
+      }
+
+      function showPassengerPopup(msg, data) {
+        const popup = document.getElementById('passengerPopup');
+        const msgEl = document.getElementById('passengerPopupMsg');
+        msgEl.textContent = msg;
+        popup.style.display = 'block';
+
+        setTimeout(() => { popup.style.display = 'none'; }, 15000);
+
+        // Reply buttons
+        document.getElementById('presetReply1').onclick = () => sendPresetReply('on_my_way', data);
+        document.getElementById('presetReply2').onclick = () => sendPresetReply('arrived', data);
+      }
+
+      function sendPresetReply(type, data) {
+        const payload = {
+          type: 'driver_preset_reply',
+          replyType: type,
+          driverId: DRIVER_ID,
+          jobId: data?.jobId || null,
+          timestamp: new Date().toISOString()
+        };
+        client.publish('server/preset_replies', JSON.stringify(payload));
+        document.getElementById('passengerPopup').style.display = 'none';
+      }
+
       // ===== DEDUPLICATION HELPER =====
       function dedupeJobs(jobs) {
         const seen = new Set();
@@ -753,7 +845,6 @@
       const menuNavBtns = document.querySelectorAll('.menu-nav-btn');
       const loadingOverlay = document.getElementById('loadingOverlay');
       const micIndicator = document.getElementById('micIndicator');
-
       // ===== ENHANCED TAXI MARKER =====
       const BLACK_CAB_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 58 36" width="58" height="36">
@@ -903,7 +994,6 @@
         );
         connectMQTT();
       }
-
       // ===== ROBUST VOICE INTERACTION (STT + TTS) =====
       let speechRecognition = null;
       let isSpeaking = false;
@@ -911,70 +1001,55 @@
       const MAX_VOICE_ATTEMPTS = 3;
       const LISTEN_TIMEOUT_MS = 8000;
       const TTS_TO_MIC_DELAY_MS = 600;
-
       function showMicIndicator() {
         micIndicator.style.display = 'block';
       }
-
       function hideMicIndicator() {
         micIndicator.style.display = 'none';
       }
-
       function speakFeedback(message, onDone = null) {
         if (!('speechSynthesis' in window)) {
           if (onDone) setTimeout(onDone, 100);
           return;
         }
-
         isSpeaking = true;
         stopVoiceListener();
-
         const utterance = new SpeechSynthesisUtterance(message);
         utterance.lang = 'en-GB';
         utterance.rate = 0.9;
-
         utterance.onend = () => {
           isSpeaking = false;
           if (onDone) setTimeout(onDone, TTS_TO_MIC_DELAY_MS);
         };
-
         utterance.onerror = () => {
           isSpeaking = false;
           if (onDone) setTimeout(onDone, TTS_TO_MIC_DELAY_MS);
         };
-
         speechSynthesis.cancel();
         speechSynthesis.speak(utterance);
       }
-
       function startVoiceListener() {
         if (isSpeaking || speechRecognition) return;
-
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
           console.warn("SpeechRecognition not supported");
           return;
         }
-
         speechRecognition = new SpeechRecognition();
         speechRecognition.lang = 'en-US';
         speechRecognition.continuous = false;
         speechRecognition.interimResults = false;
-
         let timeoutId = null;
-
         speechRecognition.onstart = () => {
           showMicIndicator();
           timeoutId = setTimeout(() => {
             if (speechRecognition) speechRecognition.stop();
           }, LISTEN_TIMEOUT_MS);
         };
-
         speechRecognition.onresult = (event) => {
           clearTimeout(timeoutId);
           const transcript = event.results[0][0].transcript.toLowerCase().trim();
           console.log("🎤 Heard:", transcript);
-
           if (/\baccept\b/.test(transcript) && !/\breject\b/.test(transcript)) {
             voiceAttemptCount = 0;
             respondToJob(true);
@@ -989,7 +1064,6 @@
             promptForVoiceResponse();
           }
         };
-
         speechRecognition.onerror = (e) => {
           clearTimeout(timeoutId);
           console.error("Voice error:", e.error);
@@ -1001,7 +1075,6 @@
             speakFeedback("Voice system error. Please use the buttons.");
           }
         };
-
         speechRecognition.onend = () => {
           clearTimeout(timeoutId);
           hideMicIndicator();
@@ -1010,7 +1083,6 @@
             setTimeout(promptForVoiceResponse, 800);
           }
         };
-
         try {
           speechRecognition.start();
         } catch (err) {
@@ -1022,7 +1094,6 @@
           }
         }
       }
-
       function stopVoiceListener() {
         hideMicIndicator();
         if (speechRecognition) {
@@ -1030,10 +1101,8 @@
           speechRecognition = null;
         }
       }
-
       function promptForVoiceResponse() {
         if (isSpeaking || !isJobActive) return;
-
         if (voiceAttemptCount === 0) {
           setTimeout(startVoiceListener, TTS_TO_MIC_DELAY_MS);
         } else if (voiceAttemptCount < MAX_VOICE_ATTEMPTS) {
@@ -1058,7 +1127,6 @@
           });
         }
       }
-
       function cleanupJob() {
         if (jobTimerInterval) {
           clearInterval(jobTimerInterval);
@@ -1076,7 +1144,6 @@
           jobWakeLock = null;
         }
       }
-
       function showJobPanel(job) {
         if (jobTimerInterval) {
           clearInterval(jobTimerInterval);
@@ -1093,7 +1160,6 @@
         const timerEl = document.getElementById('jobTimer');
         const secondsEl = document.getElementById('timerSeconds');
         timerEl.style.display = 'none';
-
         if ('speechSynthesis' in window) {
           const utterance = new SpeechSynthesisUtterance(
             `New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`
@@ -1138,7 +1204,6 @@
           voiceAttemptCount = 0;
           promptForVoiceResponse();
         }
-
         async function requestJobWakeLock() {
           if ('wakeLock' in navigator) {
             try {
@@ -1151,14 +1216,12 @@
         }
         requestJobWakeLock();
       }
-
       function processNextJob() {
         if (isJobActive || pendingJobs.length === 0 || driverPresence !== 'available') return;
         const job = pendingJobs.shift();
         savePendingJobs();
         showJobPanel(job);
       }
-
       function respondToJob(accepted, job = currentJob) {
         if (!job || !client) return;
         if (jobTimerInterval) {
@@ -1192,11 +1255,9 @@
           showJobPanel(job);
         }
       }
-
       function saveJobs() {
         localStorage.setItem(`driver_jobs_${DRIVER_ID}`, JSON.stringify(driverJobs));
       }
-
       function addJobToHistory(jobData, initialStatus = 'processing') {
         const job = {
           ...jobData,
@@ -1217,7 +1278,6 @@
         if (isMenuOpen && currentView === 'jobHistory') renderJobHistory();
         if (isMenuOpen && currentView === 'currentJob') renderCurrentJob();
       }
-
       function updateJobStatus(jobId, status) {
         const jobIndex = driverJobs.findIndex(j => j.job === jobId);
         if (jobIndex >= 0) {
@@ -1227,7 +1287,6 @@
           if (isMenuOpen && currentView === 'currentJob') renderCurrentJob();
         }
       }
-
       function renderCurrentJob() {
         const allocatedJobs = driverJobs.filter(job => job.status === 'allocated');
         if (allocatedJobs.length === 0) {
@@ -1293,7 +1352,6 @@
           }
         });
       }
-
       function renderJobHistory() {
         menuContent.innerHTML = '';
         if (driverJobs.length === 0) {
@@ -1360,7 +1418,6 @@
         });
         attachSwipeToDelete();
       }
-
       function attachSwipeToDelete() {
         const items = document.querySelectorAll('#jobHistoryContent .job-item');
         items.forEach(item => {
@@ -1420,7 +1477,6 @@
           item.addEventListener('selectstart', e => e.preventDefault());
         });
       }
-
       function renderChatView() {
         if (!currentChat) {
           currentChat = 'group';
@@ -1458,7 +1514,6 @@
         }
         openChat('group');
       }
-
       function openChat(chatId) {
         currentChat = chatId;
         const chatList = document.getElementById('chatList');
@@ -1482,7 +1537,6 @@
           };
         }
       }
-
       function renderChatMessages() {
         const chatMessagesEl = document.getElementById('chatMessages');
         if (!chatMessagesEl) return;
@@ -1507,7 +1561,6 @@
         });
         chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
       }
-
       function updateChatList() {
         const chatList = document.getElementById('chatList');
         if (!chatList) return;
@@ -1538,7 +1591,6 @@
         });
         chatList.innerHTML = html;
       }
-
       function sendChatMessage() {
         const chatInput = document.getElementById('chatInput');
         if (!chatInput || !currentChat) return;
@@ -1553,7 +1605,6 @@
         addMessage(currentChat, DRIVER_ID, text);
         chatInput.value = '';
       }
-
       function addMessage(chatId, sender, text, timestamp = Date.now()) {
         if (!chatMessages[chatId]) {
           chatMessages[chatId] = [];
@@ -1572,14 +1623,12 @@
           renderChatMessages();
         }
       }
-
       function saveChatMessages() {
         localStorage.setItem(`chat_group_${DRIVER_ID}`, JSON.stringify(chatMessages.group || []));
         if (currentChat && currentChat !== 'group') {
           localStorage.setItem(`chat_${currentChat}_${DRIVER_ID}`, JSON.stringify(chatMessages[currentChat] || []));
         }
       }
-
       function renderSettingsView() {
         menuContent.innerHTML = `
           <div class="settings-group">
@@ -1642,14 +1691,12 @@
           }
         });
       }
-
       window.markJobCompleted = function(jobId) {
         const payload = { job: jobId, driver: DRIVER_ID, status: "completed", ts: Date.now() };
         client.publish(`jobs/${jobId}/status`, JSON.stringify(payload));
         updateJobStatus(jobId, 'completed');
         statusEl.innerHTML = '<span class="gps-source gps-gps"></span>✅ Job marked as completed';
       };
-
       function getColorForDriver(driverId) {
         let hash = 0;
         for (let i = 0; i < driverId.length; i++) {
@@ -1658,7 +1705,6 @@
         const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
         return "#" + "00000".substring(0, 6 - c.length) + c;
       }
-
       function setDriverPresence(status) {
         if (!['available', 'busy', 'offline'].includes(status)) return;
         driverPresence = status;
@@ -1678,13 +1724,11 @@
           publishLocationThrottled(driverCoords);
         }
       }
-
       function handleLogOff() {
         setDriverPresence('offline');
         document.getElementById('statusDropdown').style.display = 'none';
         statusEl.innerHTML = '<span class="gps-source gps-poor"></span>✅ You are now logged off (offline)';
       }
-
       function connectMQTT() {
         statusEl.innerHTML = `<span class="gps-source gps-poor"></span>Connecting to MQTT as: ${DRIVER_ID}`;
         client = mqtt.connect(MQTT_BROKER, {
@@ -1699,6 +1743,8 @@
           client.subscribe(CHAT_GROUP_TOPIC);
           client.subscribe(CHAT_PRIVATE_TOPIC);
           client.subscribe(JOB_RESULT_TOPIC);
+          // ✅ NEW: Subscribe to passenger presets
+          client.subscribe(`drivers/${DRIVER_ID}/presets`);
           publishFcmToken();
           client.publish(`drivers/${DRIVER_ID}/status`, JSON.stringify({
             driver: DRIVER_ID,
@@ -1726,6 +1772,13 @@
         client.on('message', (topic, message) => {
           try {
             const data = JSON.parse(message.toString());
+
+            // ✅ NEW: Handle passenger presets FIRST
+            if (topic === `drivers/${DRIVER_ID}/presets`) {
+              handlePassengerPreset(data);
+              return;
+            }
+
             if (topic.startsWith("pubs/requests/")) {
               const jobId = data.job;
               const isDuplicate = pendingJobs.some(p => p.job === jobId) || 
@@ -1844,7 +1897,6 @@
           statusEl.innerHTML = '<span class="gps-source gps-poor"></span>❌ MQTT Error: ' + err.message;
         });
       }
-
       function cleanupOldDrivers() {
         const now = Date.now();
         Object.keys(otherDrivers).forEach(id => {
@@ -1855,7 +1907,6 @@
         });
         updateChatList();
       }
-
       async function requestFCMToken() {
         try {
           const permission = await Notification.requestPermission();
@@ -1863,11 +1914,9 @@
             console.warn('Notification permission not granted');
             return null;
           }
-
           fcmToken = await messaging.getToken({
             vapidKey: "BJzV8Vx2sDvF6u9vGqK7vV5vD0U6X1aB5e4R3cN2mL1kJ0hI9gF8dC7bA6yZ5xW4vU3tS2rQ1pO0nM"
           });
-
           if (fcmToken) {
             console.log('FCM Token:', fcmToken);
             publishFcmToken();
@@ -1880,7 +1929,6 @@
           return null;
         }
       }
-
       function publishFcmToken() {
         if (fcmToken && client && client.connected) {
           client.publish(`drivers/${DRIVER_ID}/fcm`, JSON.stringify({
@@ -1890,7 +1938,6 @@
           }));
         }
       }
-
       // Initialize FCM token request after service worker is ready
       if (swRegistration) {
         requestFCMToken();
@@ -1901,7 +1948,6 @@
           console.warn('Service Worker not ready for FCM:', err);
         });
       }
-
       // ===== UI EVENT LISTENERS =====
       document.getElementById('menuBtn').addEventListener('click', () => {
         isMenuOpen = !isMenuOpen;
@@ -1913,7 +1959,6 @@
           currentChat = null;
         }
       });
-
       function renderCurrentView() {
         if (currentView === 'currentJob') {
           renderCurrentJob();
@@ -1925,7 +1970,6 @@
           renderSettingsView();
         }
       }
-
       menuNavBtns.forEach(btn => {
         btn.addEventListener('click', () => {
           menuNavBtns.forEach(b => b.classList.remove('active'));
@@ -1934,10 +1978,8 @@
           renderCurrentView();
         });
       });
-
       document.getElementById('acceptBtn').addEventListener('click', () => respondToJob(true));
       document.getElementById('rejectBtn').addEventListener('click', () => respondToJob(false));
-
       // Status dropdown toggle
       const appTitleContainer = document.getElementById('appTitleContainer');
       const statusDropdown = document.getElementById('statusDropdown');
@@ -1945,7 +1987,6 @@
         e.stopPropagation();
         statusDropdown.style.display = statusDropdown.style.display === 'flex' ? 'none' : 'flex';
       });
-
       document.querySelectorAll('.status-option').forEach(option => {
         option.addEventListener('click', () => {
           const newStatus = option.dataset.status;
@@ -1953,18 +1994,14 @@
           statusDropdown.style.display = 'none';
         });
       });
-
       document.getElementById('logOffBtn').addEventListener('click', handleLogOff);
-
       document.addEventListener('click', () => {
         statusDropdown.style.display = 'none';
       });
-
       // Prevent dropdown from closing when clicking inside it
       statusDropdown.addEventListener('click', (e) => {
         e.stopPropagation();
       });
-
       // Initialize app
       initMapImmediately();
     });
