@@ -96,7 +96,7 @@
       transform: scale(0.95);
     }
 
-    /* === NEW: Passenger Preset Popup === */
+    /* === PASSENGER PRESET POPUP === */
     #passengerPopup {
       display: none;
       position: fixed;
@@ -679,7 +679,7 @@
     </div>
   </div>
 
-  <!-- === NEW: Passenger Preset Popup === -->
+  <!-- Passenger Preset Popup -->
   <div id="passengerPopup">
     <div id="passengerPopupMsg">Passenger message...</div>
     <div style="display:flex; justify-content:center; gap:10px; margin-top:12px;">
@@ -754,7 +754,7 @@
       const CHAT_GROUP_TOPIC = "chat/group";
       const CHAT_PRIVATE_TOPIC = `chat/private/${DRIVER_ID}/+`;
       const JOB_RESULT_TOPIC = `jobs/+/result/${DRIVER_ID}`;
-      // ===== NEW: PASSENGER PRESET HANDLING =====
+      // ===== PASSENGER PRESET HANDLING =====
       function handlePassengerPreset(data) {
         console.log("💬 Passenger preset received:", data);
 
@@ -765,7 +765,6 @@
           preset === "call_driver" ? "Passenger is trying to call you." :
           `Passenger message: ${preset}`;
 
-        // ✅ Voice announce
         if ('speechSynthesis' in window) {
           const utterance = new SpeechSynthesisUtterance(passengerMsg);
           utterance.lang = 'en-GB';
@@ -774,7 +773,6 @@
           speechSynthesis.speak(utterance);
         }
 
-        // ✅ Visual popup
         showPassengerPopup(passengerMsg, data);
       }
 
@@ -783,10 +781,8 @@
         const msgEl = document.getElementById('passengerPopupMsg');
         msgEl.textContent = msg;
         popup.style.display = 'block';
-
         setTimeout(() => { popup.style.display = 'none'; }, 15000);
 
-        // Reply buttons
         document.getElementById('presetReply1').onclick = () => sendPresetReply('on_my_way', data);
         document.getElementById('presetReply2').onclick = () => sendPresetReply('arrived', data);
       }
@@ -1180,7 +1176,6 @@
                 processNextJob();
               }
             }, 1000);
-            // ✅ Use new robust voice system
             voiceAttemptCount = 0;
             promptForVoiceResponse();
           };
@@ -1200,7 +1195,6 @@
               processNextJob();
             }
           }, 1000);
-          // ✅ Fallback also uses new system
           voiceAttemptCount = 0;
           promptForVoiceResponse();
         }
@@ -1743,8 +1737,7 @@
           client.subscribe(CHAT_GROUP_TOPIC);
           client.subscribe(CHAT_PRIVATE_TOPIC);
           client.subscribe(JOB_RESULT_TOPIC);
-          // ✅ NEW: Subscribe to passenger presets
-          client.subscribe(`drivers/${DRIVER_ID}/presets`);
+          client.subscribe(`drivers/${DRIVER_ID}/presets`); // 👈 NEW
           publishFcmToken();
           client.publish(`drivers/${DRIVER_ID}/status`, JSON.stringify({
             driver: DRIVER_ID,
@@ -1773,7 +1766,7 @@
           try {
             const data = JSON.parse(message.toString());
 
-            // ✅ NEW: Handle passenger presets FIRST
+            // 👇 NEW: Handle passenger presets FIRST
             if (topic === `drivers/${DRIVER_ID}/presets`) {
               handlePassengerPreset(data);
               return;
