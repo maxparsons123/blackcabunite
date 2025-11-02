@@ -725,29 +725,9 @@
     messaging.onMessage((payload) => {
       console.log("📲 Foreground message received:", payload);
     });
-    let swRegistration = null;
-    const swPath = 'firebase-messaging-sw.js';
-    const swScope = './'; // This ensures scope = https://maxparsons123.github.io/blackcabunite/
 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', async () => {
-        try {
-          swRegistration = await navigator.serviceWorker.register(
-       'firebase-messaging-sw.js',
-        { scope: './' }
-          );
-          console.log('✅ Firebase SW registered:', swRegistration.scope);
-        } catch (err) {
-          console.error('❌ Firebase SW failed:', err);
-        }
-      });
-    }
-          console.log('✅ Firebase SW registered:', swRegistration.scope);
-        } catch (err) {
-          console.error('❌ Firebase SW failed:', err);
-        }
-      });
-    }
+
+
     document.addEventListener('DOMContentLoaded', () => {
       // ===== Driver Registration =====
       let DRIVER_ID = localStorage.getItem('driver_id');
@@ -2030,6 +2010,7 @@
   </script>
 </body>
 </html>
+
 
 
 
