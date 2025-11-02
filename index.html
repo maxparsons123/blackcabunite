@@ -1132,7 +1132,7 @@
     if ('serviceWorker' in navigator) {
       requestFCMToken();
     }
-      map = L.map('map').setView([52.4068, -1.5197], 13);
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     driverMarker = L.marker([52.4068, -1.5197], {
       title: "Initializing...",
@@ -1142,4 +1142,3 @@
   </script>
 </body>
 </html>
-
