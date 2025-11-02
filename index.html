@@ -692,39 +692,32 @@
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
   // ===== FIREBASE INIT =====
-    const firebaseConfig = {
-      apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
-      authDomain: "cabunite.firebaseapp.com",
-      projectId: "cabunite",
-      storageBucket: "cabunite.firebasestorage.app",
-      messagingSenderId: "997924656033",
-      appId: "1:997924656033:web:1552b9f26a1af0878eb1e0"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const messaging = firebase.messaging();
-    messaging.onMessage((payload) => {
-      console.log("📲 Foreground message received:", payload);
-    });
-    let swRegistration = null;
-    const swPath = 'firebase-messaging-sw.js';
-    const swScope = './'; // This ensures scope = https://maxparsons123.github.io/blackcabunite/
+ const firebaseConfig = {
+    apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
+    authDomain: "cabunite.firebaseapp.com",
+    projectId: "cabunite",
+    storageBucket: "cabunite.firebasestorage.app",
+    messagingSenderId: "997924656033",
+    appId: "1:997924656033:web:1552b9f26a1af0878eb1e0"
+  };
 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', async () => {
-        try {
-            const firebaseConfig = {
-      apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
-      authDomain: "cabunite.firebaseapp.com",
-      projectId: "cabunite",
-      storageBucket: "cabunite.firebasestorage.app",
-      messagingSenderId: "997924656033",
-      appId: "1:997924656033:web:1552b9f26a1af0878eb1e0"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const messaging = firebase.messaging();
-    messaging.onMessage((payload) => {
-      console.log("📲 Foreground message received:", payload);
-    });
+  firebase.initializeApp(firebaseConfig);
+  const messaging = firebase.messaging();
+
+  // Listen for foreground notifications
+  messaging.onMessage((payload) => {
+    console.log("📲 Foreground message received:", payload);
+    if (Notification.permission === 'granted') {
+      new Notification(payload.notification?.title || "Taxi Update", {
+        body: payload.notification?.body || "You have a new message",
+        icon: payload.notification?.icon || '/blackcabunite/icon-192.png'
+      });
+    }
+  });
+
+  // Global vars
+  let fcmToken = null;
+
 
 
 
@@ -1909,58 +1902,66 @@
         });
         updateChatList();
       }
-      async function requestFCMToken() {
-        try {
-          const permission = await Notification.requestPermission();
-          if (permission !== 'granted') {
-            console.warn('Notification permission not granted');
-            return null;
-          }
-          fcmToken = await messaging.getToken({
-            vapidKey: "BJzV8Vx2sDvF6u9vGqK7vV5vD0U6X1aB5e4R3cN2mL1kJ0hI9gF8dC7bA6yZ5xW4vU3tS2rQ1pO0nM"
-          });
-          if (fcmToken) {
-            console.log('FCM Token:', fcmToken);
-            publishFcmToken();
-          } else {
-            console.warn('No FCM token retrieved');
-          }
-          return fcmToken;
-        } catch (err) {
-          console.error('Failed to get FCM token:', err);
-          return null;
-        }
+ async function requestFCMToken() {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        console.warn('⚠️ Notifications permission not granted');
+        return null;
       }
-      function publishFcmToken() {
-        if (fcmToken && client && client.connected) {
-          client.publish(`drivers/${DRIVER_ID}/fcm`, JSON.stringify({
-            driver: DRIVER_ID,
-            fcmToken: fcmToken,
-            ts: Date.now()
-          }));
-        }
-      }
-      // Initialize FCM token request after service worker is ready
-      if (swRegistration) {
-        requestFCMToken();
-      } else if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then(() => {
-          requestFCMToken();
-        }).catch(err => {
-          console.warn('Service Worker not ready for FCM:', err);
-        });
-      }
-      // ===== UI EVENT LISTENERS =====
-      document.getElementById('menuBtn').addEventListener('click', () => {
-        isMenuOpen = !isMenuOpen;
-        if (isMenuOpen) {
-          menuPanel.classList.add('active');
-          renderCurrentView();
-        } else {
-          menuPanel.classList.remove('active');
-          currentChat = null;
-        }
+
+      // ✅ Register SW explicitly from correct path
+      const registration = await navigator.serviceWorker.register('/blackcabunite/firebase-messaging-sw.js', {
+        scope: '/blackcabunite/'
       });
+      console.log('✅ Firebase SW registered for FCM token:', registration.scope);
+
+      // ✅ Pass registration to Firebase
+      fcmToken = await messaging.getToken({
+        vapidKey: "BJzV8Vx2sDvF6u9vGqK7vV5vD0U6X1aB5e4R3cN2mL1kJ0hI9gF8dC7bA6yZ5xW4vU3tS2rQ1pO0nM",
+        serviceWorkerRegistration: registration
+      });
+
+      if (fcmToken) {
+        console.log('✅ FCM Token:', fcmToken);
+        publishFcmToken();
+      } else {
+        console.warn('⚠️ No FCM token retrieved');
+      }
+
+      return fcmToken;
+    } catch (err) {
+      console.error('❌ Failed to get FCM token:', err);
+      return null;
+    }
+  }
+     function publishFcmToken() {
+    if (typeof client === 'undefined' || !client?.connected) {
+      console.warn("⚠️ MQTT client not connected yet; FCM token will be sent later");
+      return;
+    }
+    if (!fcmToken || !window.DRIVER_ID) {
+      console.warn("⚠️ Missing FCM token or DRIVER_ID");
+      return;
+    }
+
+    const payload = {
+      driver: DRIVER_ID,
+      fcmToken: fcmToken,
+      ts: Date.now()
+    };
+    client.publish(`drivers/${DRIVER_ID}/fcm`, JSON.stringify(payload));
+    console.log("📤 Published FCM token via MQTT:", payload);
+  }
+
+  // ✅ Register SW + get token after load
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', async () => {
+      await requestFCMToken();
+    });
+  } else {
+    console.warn('❌ Service workers not supported in this browser');
+  }
       function renderCurrentView() {
         if (currentView === 'currentJob') {
           renderCurrentJob();
@@ -2010,6 +2011,7 @@
   </script>
 </body>
 </html>
+
 
 
 
