@@ -95,7 +95,6 @@
     #menuBtn:active {
       transform: scale(0.95);
     }
-
     /* === PASSENGER PRESET POPUP === */
     #passengerPopup {
       display: none;
@@ -127,7 +126,6 @@
     .replyBtn:nth-child(2) {
       background: #1f6feb;
     }
-
     /* Status bar at bottom */
     #status { 
       position: absolute;
@@ -678,7 +676,6 @@
       ">Close</button>
     </div>
   </div>
-
   <!-- Passenger Preset Popup -->
   <div id="passengerPopup">
     <div id="passengerPopupMsg">Passenger message...</div>
@@ -687,51 +684,33 @@
       <button id="presetReply2" class="replyBtn">Arrived</button>
     </div>
   </div>
-
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
   // ===== FIREBASE INIT =====
-const firebaseConfig = {
+ const firebaseConfig = {
     apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
     authDomain: "cabunite.firebaseapp.com",
     projectId: "cabunite",
     storageBucket: "cabunite.firebasestorage.app",
     messagingSenderId: "997924656033",
-    appId: "1:997924656033:web:1552b9f26a1af0878eb1e0",
-    measurementId: "G-7CQ2H4YM12"
+    appId: "1:997924656033:web:1552b9f26a1af0878eb1e0"
   };
-
   firebase.initializeApp(firebaseConfig);
   const messaging = firebase.messaging();
-
-  // Handle foreground messages
+  // Listen for foreground notifications
   messaging.onMessage((payload) => {
     console.log("📲 Foreground message received:", payload);
-    if (Notification.permission === "granted") {
+    if (Notification.permission === 'granted') {
       new Notification(payload.notification?.title || "Taxi Update", {
         body: payload.notification?.body || "You have a new message",
-        icon: "/blackcabunite/icon-192.png"
+        icon: payload.notification?.icon || '/blackcabunite/icon-192.png'
       });
     }
   });
-
-  // 🔑 Your actual Web Push VAPID key
-  const VAPID_KEY = "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow";
-
-  // Register Service Worker + get FCM token
-  async function requestFCMToken() {
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        console.warn("⚠️ Notifications permission not granted");
-        return null;
-      }
   // Global vars
   let fcmToken = null;
-
-
-
+  let seenJobIds = new Set(); // ✅ Prevent duplicate jobs globally
 
     document.addEventListener('DOMContentLoaded', () => {
       // ===== Driver Registration =====
@@ -750,6 +729,12 @@ const firebaseConfig = {
         }
         localStorage.setItem('driver_id', DRIVER_ID);
       }
+
+      // ✅ Initialize seenJobIds from saved jobs
+      let driverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${DRIVER_ID}`)) || [];
+      let pendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${DRIVER_ID}`)) || [];
+      seenJobIds = new Set([...driverJobs.map(j => j.job), ...pendingJobs.map(p => p.job)]);
+
       let driverPresence = localStorage.getItem('driver_presence') || 'available';
       let ttsInitialized = false;
       function initTTS() {
@@ -771,14 +756,12 @@ const firebaseConfig = {
       // ===== PASSENGER PRESET HANDLING =====
       function handlePassengerPreset(data) {
         console.log("💬 Passenger preset received:", data);
-
         const preset = data?.presetType || "Unknown";
         const passengerMsg =
           preset === "where_are_you" ? "Passenger asks: Where are you?" :
           preset === "cancel_ride" ? "Passenger wants to cancel the ride." :
           preset === "call_driver" ? "Passenger is trying to call you." :
           `Passenger message: ${preset}`;
-
         if ('speechSynthesis' in window) {
           const utterance = new SpeechSynthesisUtterance(passengerMsg);
           utterance.lang = 'en-GB';
@@ -786,21 +769,17 @@ const firebaseConfig = {
           speechSynthesis.cancel();
           speechSynthesis.speak(utterance);
         }
-
         showPassengerPopup(passengerMsg, data);
       }
-
       function showPassengerPopup(msg, data) {
         const popup = document.getElementById('passengerPopup');
         const msgEl = document.getElementById('passengerPopupMsg');
         msgEl.textContent = msg;
         popup.style.display = 'block';
         setTimeout(() => { popup.style.display = 'none'; }, 15000);
-
         document.getElementById('presetReply1').onclick = () => sendPresetReply('on_my_way', data);
         document.getElementById('presetReply2').onclick = () => sendPresetReply('arrived', data);
       }
-
       function sendPresetReply(type, data) {
         const payload = {
           type: 'driver_preset_reply',
@@ -812,7 +791,6 @@ const firebaseConfig = {
         client.publish('server/preset_replies', JSON.stringify(payload));
         document.getElementById('passengerPopup').style.display = 'none';
       }
-
       // ===== DEDUPLICATION HELPER =====
       function dedupeJobs(jobs) {
         const seen = new Set();
@@ -822,9 +800,10 @@ const firebaseConfig = {
           return true;
         });
       }
-      // Load and dedupe jobs
-      let driverJobs = dedupeJobs(JSON.parse(localStorage.getItem(`driver_jobs_${DRIVER_ID}`)) || []);
-      let pendingJobs = dedupeJobs(JSON.parse(localStorage.getItem(`pending_jobs_${DRIVER_ID}`)) || []);
+      // Load and dedupe jobs (already done above via seenJobIds)
+      driverJobs = dedupeJobs(driverJobs);
+      pendingJobs = dedupeJobs(pendingJobs);
+
       let driverCoords = null;
       let map = null;
       let driverMarker = null;
@@ -844,7 +823,6 @@ const firebaseConfig = {
       let currentChat = 'group';
       let jobTimerInterval = null;
       let jobWakeLock = null;
-      let fcmToken = null;
       const statusEl = document.getElementById('status');
       const jobPanel = document.getElementById('jobPanel');
       const pickupLocation = document.getElementById('pickupLocation');
@@ -855,6 +833,7 @@ const firebaseConfig = {
       const menuNavBtns = document.querySelectorAll('.menu-nav-btn');
       const loadingOverlay = document.getElementById('loadingOverlay');
       const micIndicator = document.getElementById('micIndicator');
+
       // ===== ENHANCED TAXI MARKER =====
       const BLACK_CAB_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 58 36" width="58" height="36">
@@ -1266,7 +1245,7 @@ const firebaseConfig = {
       function saveJobs() {
         localStorage.setItem(`driver_jobs_${DRIVER_ID}`, JSON.stringify(driverJobs));
       }
-      function addJobToHistory(jobData, initialStatus = 'processing') {
+      function addJobToHistory(jobData, initialStatus = 'queued') {
         const job = {
           ...jobData,
           status: initialStatus,
@@ -1752,7 +1731,7 @@ const firebaseConfig = {
           client.subscribe(CHAT_PRIVATE_TOPIC);
           client.subscribe(JOB_RESULT_TOPIC);
           client.subscribe(`drivers/${DRIVER_ID}/presets`); // 👈 NEW
-          publishFcmToken();
+          publishFcmToken(); // ✅ Publish FCM token on connect
           client.publish(`drivers/${DRIVER_ID}/status`, JSON.stringify({
             driver: DRIVER_ID,
             status: driverPresence,
@@ -1779,21 +1758,19 @@ const firebaseConfig = {
         client.on('message', (topic, message) => {
           try {
             const data = JSON.parse(message.toString());
-
             // 👇 NEW: Handle passenger presets FIRST
             if (topic === `drivers/${DRIVER_ID}/presets`) {
               handlePassengerPreset(data);
               return;
             }
-
             if (topic.startsWith("pubs/requests/")) {
               const jobId = data.job;
-              const isDuplicate = pendingJobs.some(p => p.job === jobId) || 
-                                 driverJobs.some(j => j.job === jobId);
-              if (isDuplicate) {
+              // ✅ Use global seenJobIds to prevent duplicates
+              if (seenJobIds.has(jobId)) {
                 console.log("⏭️ Skipping duplicate job:", jobId);
                 return;
               }
+              seenJobIds.add(jobId);
               pendingJobs.push({ ...data, receivedAt: Date.now() });
               savePendingJobs();
               addJobToHistory(data, 'queued');
@@ -1914,66 +1891,55 @@ const firebaseConfig = {
         });
         updateChatList();
       }
- async function requestFCMToken() {
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        console.warn('⚠️ Notifications permission not granted');
-        return null;
+
+      // ✅ FIXED FCM FUNCTIONS
+      async function requestFCMToken() {
+        try {
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            console.warn('⚠️ Notifications permission not granted');
+            return null;
+          }
+          // Let Firebase handle SW automatically
+          fcmToken = await messaging.getToken({
+            vapidKey: "BJzV8Vx2sDvF6u9vGqK7vV5vD0U6X1aB5e4R3cN2mL1kJ0hI9gF8dC7bA6yZ5xW4vU3tS2rQ1pO0nM"
+          });
+          if (fcmToken) {
+            console.log('✅ FCM Token obtained:', fcmToken.substring(0, 10) + '...');
+            publishFcmToken();
+          } else {
+            console.warn('⚠️ No FCM token retrieved');
+          }
+          return fcmToken;
+        } catch (err) {
+          console.error('❌ Failed to get FCM token:', err);
+          return null;
+        }
       }
 
-      // ✅ Register SW explicitly from correct path
-      const registration = await navigator.serviceWorker.register('/blackcabunite/firebase-messaging-sw.js', {
-        scope: '/blackcabunite/'
-      });
-      console.log('✅ Firebase SW registered for FCM token:', registration.scope);
-
-      // ✅ Pass registration to Firebase
-      fcmToken = await messaging.getToken({
-        vapidKey: "BJzV8Vx2sDvF6u9vGqK7vV5vD0U6X1aB5e4R3cN2mL1kJ0hI9gF8dC7bA6yZ5xW4vU3tS2rQ1pO0nM",
-        serviceWorkerRegistration: registration
-      });
-
-      if (fcmToken) {
-        console.log('✅ FCM Token:', fcmToken);
-        publishFcmToken();
-      } else {
-        console.warn('⚠️ No FCM token retrieved');
+      function publishFcmToken() {
+        if (!client || !client.connected) {
+          console.log("⏳ MQTT not connected yet; will retry on connect");
+          return;
+        }
+        if (!fcmToken || !DRIVER_ID) {
+          console.warn("⚠️ Missing FCM token or DRIVER_ID");
+          return;
+        }
+        const payload = {
+          driver: DRIVER_ID,
+          fcmToken: fcmToken,
+          ts: Date.now()
+        };
+        client.publish(`drivers/${DRIVER_ID}/fcm`, JSON.stringify(payload));
+        console.log("📤 Published FCM token via MQTT");
       }
 
-      return fcmToken;
-    } catch (err) {
-      console.error('❌ Failed to get FCM token:', err);
-      return null;
-    }
-  }
-     function publishFcmToken() {
-    if (typeof client === 'undefined' || !client?.connected) {
-      console.warn("⚠️ MQTT client not connected yet; FCM token will be sent later");
-      return;
-    }
-    if (!fcmToken || !window.DRIVER_ID) {
-      console.warn("⚠️ Missing FCM token or DRIVER_ID");
-      return;
-    }
+      // ✅ Request FCM token AFTER DRIVER_ID is set
+      if ('serviceWorker' in navigator && Notification.permission !== 'denied') {
+        requestFCMToken();
+      }
 
-    const payload = {
-      driver: DRIVER_ID,
-      fcmToken: fcmToken,
-      ts: Date.now()
-    };
-    client.publish(`drivers/${DRIVER_ID}/fcm`, JSON.stringify(payload));
-    console.log("📤 Published FCM token via MQTT:", payload);
-  }
-
-  // ✅ Register SW + get token after load
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
-      await requestFCMToken();
-    });
-  } else {
-    console.warn('❌ Service workers not supported in this browser');
-  }
       function renderCurrentView() {
         if (currentView === 'currentJob') {
           renderCurrentJob();
@@ -2023,9 +1989,3 @@ const firebaseConfig = {
   </script>
 </body>
 </html>
-
-
-
-
-
-
