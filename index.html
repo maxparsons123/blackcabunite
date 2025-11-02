@@ -746,7 +746,7 @@
       }
       document.body.addEventListener('click', initTTS, { once: true });
       document.body.addEventListener('touchstart', initTTS, { once: true });
-      const MQTT_BROKER = "wss://broker.hivemq.com:8884/mqtt";
+      const MQTT_BROKER = "wss://broker.hivemq.com:8000/mqtt";
       const REQUEST_TOPIC = "pubs/requests/+";
       const LOCATION_TOPIC = `drivers/${DRIVER_ID}/location`;
       const DRIVERS_LOCATION_TOPIC = "drivers/+/location";
@@ -1993,6 +1993,7 @@ async function requestFCMToken() {
   </script>
 </body>
 </html>
+
 
 
 
