@@ -692,29 +692,41 @@
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
   // ===== FIREBASE INIT =====
- const firebaseConfig = {
+const firebaseConfig = {
     apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
     authDomain: "cabunite.firebaseapp.com",
     projectId: "cabunite",
     storageBucket: "cabunite.firebasestorage.app",
     messagingSenderId: "997924656033",
-    appId: "1:997924656033:web:1552b9f26a1af0878eb1e0"
+    appId: "1:997924656033:web:1552b9f26a1af0878eb1e0",
+    measurementId: "G-7CQ2H4YM12"
   };
 
   firebase.initializeApp(firebaseConfig);
   const messaging = firebase.messaging();
 
-  // Listen for foreground notifications
+  // Handle foreground messages
   messaging.onMessage((payload) => {
     console.log("📲 Foreground message received:", payload);
-    if (Notification.permission === 'granted') {
+    if (Notification.permission === "granted") {
       new Notification(payload.notification?.title || "Taxi Update", {
         body: payload.notification?.body || "You have a new message",
-        icon: payload.notification?.icon || '/blackcabunite/icon-192.png'
+        icon: "/blackcabunite/icon-192.png"
       });
     }
   });
 
+  // 🔑 Your actual Web Push VAPID key
+  const VAPID_KEY = "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow";
+
+  // Register Service Worker + get FCM token
+  async function requestFCMToken() {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        console.warn("⚠️ Notifications permission not granted");
+        return null;
+      }
   // Global vars
   let fcmToken = null;
 
@@ -2011,6 +2023,7 @@
   </script>
 </body>
 </html>
+
 
 
 
