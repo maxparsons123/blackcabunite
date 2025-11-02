@@ -1985,10 +1985,14 @@ async function requestFCMToken() {
         e.stopPropagation();
       });
       // Initialize app
+        if ('serviceWorker' in navigator && Notification.permission !== 'denied') {
+        requestFCMToken();
+      }
       initMapImmediately();
     });
   </script>
 </body>
 </html>
+
 
 
