@@ -1,7 +1,6 @@
 // firebase-messaging-sw.js
 importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js");
-
 firebase.initializeApp({
   apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
   authDomain: "cabunite.firebaseapp.com",
@@ -75,3 +74,4 @@ self.addEventListener('notificationclick', (event) => {
       })
   );
 });
+
