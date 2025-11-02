@@ -710,8 +710,8 @@
       window.addEventListener('load', async () => {
         try {
           swRegistration = await navigator.serviceWorker.register(
-            'firebase-messaging-sw.js',
-            { scope: './' }
+       'firebase-messaging-sw.js',
+        { scope: './' }
           );
           console.log('✅ Firebase SW registered:', swRegistration.scope);
         } catch (err) {
@@ -2001,4 +2001,5 @@
   </script>
 </body>
 </html>
+
 
