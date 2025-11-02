@@ -1,11 +1,12 @@
 // firebase-messaging-sw.js
 importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js");
+
 firebase.initializeApp({
   apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
   authDomain: "cabunite.firebaseapp.com",
   projectId: "cabunite",
-  storageBucket: "cabunite.firebasestorage.app", // ✅ Fixed
+  storageBucket: "cabunite.firebasestorage.app",
   messagingSenderId: "997924656033",
   appId: "1:997924656033:web:1552b9f26a1af0878eb1e0"
 });
@@ -39,14 +40,14 @@ messaging.onBackgroundMessage((payload) => {
         const notificationTitle = "🚕 New Job Request";
         const notificationOptions = {
           body: `Pickup: ${pubName}\nCustomer: ${customerName}`,
-          icon: "/taxi-icon-192.png",
-          badge: "/taxi-badge.png",
+          icon: "/blackcabunite/icon-192.png", // ✅ Updated path
+          badge: "/blackcabunite/icon-512.png", // ✅ Updated path
           tag: "job-" + jobId,
           renotify: true,
           data: { jobId: jobId }
         };
 
-        self.registration.showNotification(notificationTitle, notificationOptions);
+        return self.registration.showNotification(notificationTitle, notificationOptions);
       });
   }
 });
@@ -69,7 +70,7 @@ self.addEventListener('notificationclick', (event) => {
         }
         const url = jobId
           ? `https://maxparsons123.github.io/blackcabunite/?job=${encodeURIComponent(jobId)}`
-          : `https://maxparsons123.github.io/blackcabunite/`;
+          : `https://maxparsons123.github.io/blackcabunite/`; // ✅ No extra spaces
         return self.clients.openWindow(url);
       })
   );
