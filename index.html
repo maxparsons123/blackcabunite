@@ -1896,29 +1896,28 @@
 async function requestFCMToken() {
   try {
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      console.warn('⚠️ Notification permission denied');
-      return null;
-    }
+    if (permission !== 'granted') return null;
 
-    // Let Firebase auto-register its own service worker
+    // Register SW at correct path & scope
+    const registration = await navigator.serviceWorker.register(
+      '/blackcabunite/firebase-messaging-sw.js',
+      { scope: '/blackcabunite/' }
+    );
+
     fcmToken = await messaging.getToken({
-      vapidKey: "BJzV8Vx2sDvF6u9vGqK7vV5vD0U6X1aB5e4R3cN2mL1kJ0hI9gF8dC7bA6yZ5xW4vU3tS2rQ1pO0nM"
+      vapidKey: "BJzV8Vx2sDvF6u9vGqK7vV5vD0U6X1aB5e4R3cN2mL1kJ0hI9gF8dC7bA6yZ5xW4vU3tS2rQ1pO0nM",
+      serviceWorkerRegistration: registration
     });
 
     if (fcmToken) {
       console.log('✅ FCM Token:', fcmToken.substring(0, 12) + '...');
-      publishFcmToken(); // Now safe to publish
-    } else {
-      console.warn('⚠️ No FCM token generated');
+      publishFcmToken(); // will retry if MQTT not ready
     }
     return fcmToken;
   } catch (err) {
-    console.error('❌ FCM token error:', err);
-    return null;
+    console.error('❌ FCM setup failed:', err);
   }
 }
-
       function publishFcmToken() {
         if (!client || !client.connected) {
           console.log("⏳ MQTT not connected yet; will retry on connect");
@@ -1991,4 +1990,5 @@ async function requestFCMToken() {
   </script>
 </body>
 </html>
+
 
