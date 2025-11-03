@@ -1206,12 +1206,14 @@
             const payload = JSON.parse(message.toString());
             console.log(`📥 MQTT Message on ${topic}:`, payload);
             
-            if (topic.startsWith('pubs/requests/')) {
-                // Job Request - filter by distance
-                const distance = driverCoords ? calculateDistance(driverCoords.lat, driverCoords.lng, payload.lat, payload.lng) / 1000 : Infinity);
-                if (distance <= maxRadius && !isJobActive && !seenJobIds.has(payload.job)) {
-                  showJobPanel(payload);
-                }
+       if (topic.startsWith('pubs/requests/')) {
+    // Job Request - filter by distance
+    // REMOVE THE EXTRA ')' AFTER Infinity
+    const distance = driverCoords ? calculateDistance(driverCoords.lat, driverCoords.lng, payload.lat, payload.lng) / 1000 : Infinity;
+    if (distance <= maxRadius && !isJobActive && !seenJobIds.has(payload.job)) {
+        showJobPanel(payload);
+    }
+
             } else if (topic.startsWith(`jobs/${DRIVER_ID}/status`)) {
                 // Job Status Update
                 handleJobUpdate(payload);
@@ -1504,4 +1506,5 @@
   </script>
 </body>
 </html>
+
 
