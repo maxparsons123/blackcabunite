@@ -1208,7 +1208,7 @@
             
             if (topic.startsWith('pubs/requests/')) {
                 // Job Request - filter by distance
-                const distance = driverCoords ? calculateDistance(driverCoords.lat, driverCoords.lng, payload.lat, payload.lng) / 1000 : Infinity;
+                const distance = driverCoords ? calculateDistance(driverCoords.lat, driverCoords.lng, payload.lat, payload.lng) / 1000 : Infinity);
                 if (distance <= maxRadius && !isJobActive && !seenJobIds.has(payload.job)) {
                   showJobPanel(payload);
                 }
@@ -1504,3 +1504,4 @@
   </script>
 </body>
 </html>
+
