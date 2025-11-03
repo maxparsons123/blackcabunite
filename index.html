@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.2</title>
+  <title>Black Cab Unite v7.1</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -276,7 +276,7 @@
       background: white;
       display: none;
       flex-direction: column;
-      z-index: 3000;
+      z-index: 2000;
       box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
       transform: translateY(100%);
       transition: transform 0.3s ease;
@@ -455,13 +455,21 @@
       background: #1958c4;
       box-shadow: 0 6px 16px rgba(31, 111, 235, 0.4);
     }
-    /* Job Won Modal */
+    .settings-info {
+      background: #f8f9fa;
+      padding: 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.5;
+    }
+    /* Job Won Modal - Simple */
     #jobWonModal {
       display: none;
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.7);
-      z-index: 2001;
+      z-index: 2000;
       justify-content: center;
       align-items: center;
     }
@@ -473,6 +481,7 @@
       max-width: 320px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.3);
     }
+    /* Enhanced Taxi Marker */
     .taxi-marker {
       background: transparent !important;
       border: none !important;
@@ -484,7 +493,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.2</div>
+      <div id="appTitle">Black Cab Unite v7.1</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -531,12 +540,12 @@
     </div>
     <div id="menuContent"></div>
   </div>
+  <!-- Simple Job Won Modal -->
   <div id="jobWonModal">
     <div id="jobWonModal-content">
       <div style="font-size: 60px; margin-bottom: 16px;">🎉</div>
       <h2 style="margin: 0 0 12px; color: #1f6feb;">You Won the Job!</h2>
-      <p style="margin: 0 0 24px; color: #555;">Get ready to pick up the customer.</p>
-      <button id="closeJobWonModal" class="settings-btn">Close</button>
+      <p style="margin: 0; color: #555;">Check your Current Job tab.</p>
     </div>
   </div>
   <div id="passengerPopup">
@@ -593,8 +602,21 @@
     let voiceAttemptCount = 0;
     const MAX_VOICE_ATTEMPTS = 3;
     const TTS_TO_MIC_DELAY_MS = 600;
+    let maxRadius = parseFloat(localStorage.getItem('max_radius_km') || '10');
 
     seenJobIds = new Set([...driverJobs.map(j => j.job), ...pendingJobs.map(p => p.job)]);
+
+    // ===== TTS INITIALIZATION (CRITICAL FOR MOBILE) =====
+    let ttsInitialized = false;
+    function initTTS() {
+      if (ttsInitialized || !('speechSynthesis' in window)) return;
+      const utterance = new SpeechSynthesisUtterance('');
+      utterance.volume = 0;
+      speechSynthesis.speak(utterance);
+      ttsInitialized = true;
+    }
+    document.body.addEventListener('click', initTTS, { once: true });
+    document.body.addEventListener('touchstart', initTTS, { once: true });
 
     // ===== VALIDATION =====
     function validateDriverId(id) {
@@ -602,21 +624,25 @@
     }
 
     // ===== TTS / STT =====
-    function speak(text, onEnd = null) {
+    function speakFeedback(message, onDone = null) {
       if (!('speechSynthesis' in window)) {
-        if (onEnd) setTimeout(onEnd, 100);
+        if (onDone) setTimeout(onDone, 100);
         return;
       }
       isSpeaking = true;
       speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'en-GB';
-      u.rate = 0.9;
-      u.onend = () => {
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.lang = 'en-GB';
+      utterance.rate = 0.9;
+      utterance.onend = () => {
         isSpeaking = false;
-        if (onEnd) setTimeout(onEnd, TTS_TO_MIC_DELAY_MS);
+        if (onDone) setTimeout(onDone, TTS_TO_MIC_DELAY_MS);
       };
-      speechSynthesis.speak(u);
+      utterance.onerror = () => {
+        isSpeaking = false;
+        if (onDone) setTimeout(onDone, TTS_TO_MIC_DELAY_MS);
+      };
+      speechSynthesis.speak(utterance);
     }
 
     function startVoiceListener() {
@@ -632,11 +658,11 @@
         if (/\baccept\b/.test(t) && !/\breject\b/.test(t)) {
           voiceAttemptCount = 0;
           respondToJob(true);
-          speak("Job accepted. Thank you.");
+          speakFeedback("Job accepted. Thank you.");
         } else if (/\breject\b/.test(t)) {
           voiceAttemptCount = 0;
           respondToJob(false);
-          speak("Job rejected. Understood.");
+          speakFeedback("Job rejected. Understood.");
         } else {
           voiceAttemptCount++;
           stopVoiceListener();
@@ -658,17 +684,16 @@
 
     function promptForVoiceResponse() {
       if (isSpeaking || !isJobActive) return;
-      // 🔥 FIX: Always show mic on retry
       document.getElementById('micIndicator').style.display = 'block';
       if (voiceAttemptCount === 0) {
         setTimeout(startVoiceListener, TTS_TO_MIC_DELAY_MS);
       } else if (voiceAttemptCount < MAX_VOICE_ATTEMPTS) {
-        speak("Did not hear you. Please say ‘accept’ or ‘reject’.", () => {
+        speakFeedback("Did not hear you. Please say ‘accept’ or ‘reject’.", () => {
           document.getElementById('micIndicator').style.display = 'block';
           startVoiceListener();
         });
       } else {
-        speak("Let me repeat the job.", () => {
+        speakFeedback("Let me repeat the job.", () => {
           const job = currentJob;
           if (job) {
             const utterance = new SpeechSynthesisUtterance(
@@ -692,7 +717,7 @@
         data.presetType === "cancel_ride" ? "Passenger wants to cancel the ride." :
         data.presetType === "call_driver" ? "Passenger is trying to call you." :
         `Passenger message: ${data.presetType}`;
-      speak(msg);
+      speakFeedback(msg);
       showPassengerPopup(msg, data);
     }
     function showPassengerPopup(msg, data) {
@@ -799,61 +824,41 @@
       localStorage.setItem(`driver_jobs_${DRIVER_ID}`, JSON.stringify(driverJobs));
       if (isMenuOpen && currentView === 'jobHistory') renderJobHistory();
     }
-function showJobPanel(job) {
-  if (jobTimerInterval) {
-    clearInterval(jobTimerInterval);
-    jobTimerInterval = null;
-  }
-  stopVoiceListener();
-  currentJob = job;
-  isJobActive = true;
-  jobPanel.style.display = 'block';
-
-  // ✅ ONLY essential info
-  pickupLocation.textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
-  customerName.textContent = job.customerName || 'Not provided';
-  customerPhone.textContent = job.customerPhone || 'Not provided';
-
-  const timerEl = document.getElementById('jobTimer');
-  const secondsEl = document.getElementById('timerSeconds');
-  timerEl.style.display = 'block';
-  secondsEl.textContent = '30';
-  let secondsLeft = 30;
-  jobTimerInterval = setInterval(() => {
-    secondsLeft--;
-    secondsEl.textContent = secondsLeft;
-    if (secondsLeft <= 0) {
-      clearInterval(jobTimerInterval);
-      jobTimerInterval = null;
-      cleanupJob();
-      processNextJob();
+    function cleanupJob() {
+      if (jobTimerInterval) clearInterval(jobTimerInterval);
+      document.getElementById('jobPanel').style.display = 'none';
+      stopVoiceListener();
+      speechSynthesis.cancel();
+      currentJob = null;
+      isJobActive = false;
+      document.getElementById('micIndicator').style.display = 'none';
     }
-  }, 1000);
+    function showJobPanel(job) {
+      if (seenJobIds.has(job.job)) return;
+      seenJobIds.add(job.job);
+      isJobActive = true;
+      currentJob = job;
+      document.getElementById('jobPanel').style.display = 'block';
+      document.getElementById('pickupLocation').textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
+      document.getElementById('customerName').textContent = job.customerName || 'Not provided';
+      document.getElementById('customerPhone').textContent = job.customerPhone || 'Not provided';
+      document.getElementById('jobTimer').style.display = 'block';
+      let sec = 30;
+      document.getElementById('timerSeconds').textContent = sec;
+      jobTimerInterval = setInterval(() => {
+        sec--;
+        document.getElementById('timerSeconds').textContent = sec;
+        if (sec <= 0) {
+          clearInterval(jobTimerInterval);
+          cleanupJob();
+        }
+      }, 1000);
+      speakFeedback(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`, () => {
+        voiceAttemptCount = 0;
+        promptForVoiceResponse();
+      });
+    }
 
-  // ✅ Voice prompt with fallback
-  const message = `New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`;
-  
-  if ('speechSynthesis' in window) {
-    speakFeedback(message, () => {
-      voiceAttemptCount = 0;
-      promptForVoiceResponse();
-    });
-  } else {
-    // Fallback: start voice listener immediately if no TTS
-    setTimeout(() => {
-      voiceAttemptCount = 0;
-      promptForVoiceResponse();
-    }, 300);
-  }
-
-  // Wake lock
-  if ('wakeLock' in navigator) {
-    navigator.wakeLock.request('screen').then(lock => {
-      jobWakeLock = lock;
-      lock.addEventListener('release', () => { jobWakeLock = null; });
-    }).catch(err => console.warn('WakeLock failed:', err));
-  }
-}
     // ===== MENU SYSTEM =====
     function renderCurrentJob() {
       const allocated = driverJobs.find(j => j.status === 'allocated');
@@ -944,6 +949,11 @@ function showJobPanel(job) {
           <button class="settings-btn" id="saveDriverIdBtn">Save Driver ID</button>
         </div>
         <div class="settings-group">
+          <div class="settings-label">Max Job Radius (km)</div>
+          <input type="number" id="maxRadiusInput" class="settings-input" value="${maxRadius}" min="1" max="50" step="1">
+          <button class="settings-btn" id="saveRadiusBtn">Save Radius</button>
+        </div>
+        <div class="settings-group">
           <button class="settings-btn" id="clearJobsBtn" style="background:#dc3545;">Clear Job History</button>
         </div>
       `;
@@ -953,6 +963,17 @@ function showJobPanel(job) {
           localStorage.setItem('driver_id', newId);
           DRIVER_ID = newId;
           alert("Driver ID updated. Reload to apply fully.");
+        }
+      });
+      document.getElementById('saveRadiusBtn').addEventListener('click', () => {
+        const val = document.getElementById('maxRadiusInput').value;
+        const radius = parseFloat(val);
+        if (!isNaN(radius) && radius >= 1 && radius <= 50) {
+          maxRadius = radius;
+          localStorage.setItem('max_radius_km', radius.toString());
+          alert(`Max job radius set to ${radius} km`);
+        } else {
+          alert("Please enter a value between 1 and 50");
         }
       });
       document.getElementById('clearJobsBtn').addEventListener('click', () => {
@@ -997,7 +1018,6 @@ function showJobPanel(job) {
       map = L.map('map').setView([52.4068, -1.5197], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
       driverMarker = L.marker([52.4068, -1.5197], {
-        title: "Initializing...",
         icon: createBlackCabIcon(0)
       }).addTo(map);
       initGPS();
@@ -1043,7 +1063,7 @@ function showJobPanel(job) {
       client.on('connect', () => {
         document.getElementById('status').textContent = `✅ Connected as ${DRIVER_ID}`;
         client.subscribe("pubs/requests/+");
-        client.subscribe(`jobs/+/result/${DRIVER_ID}`); // 👈 KEY: Listen for job results
+        client.subscribe(`jobs/+/result/${DRIVER_ID}`);
         client.subscribe("drivers/+/location");
         client.subscribe("drivers/+/status");
         client.subscribe("chat/group");
@@ -1055,29 +1075,6 @@ function showJobPanel(job) {
       client.on('message', (topic, msg) => {
         try {
           const data = JSON.parse(msg.toString());
-
-          // 👇 JOB WON HANDLING
-          if (topic.startsWith("jobs/") && topic.endsWith(`/result/${DRIVER_ID}`)) {
-            const jobId = topic.split('/')[1];
-            if (data.result === "won") {
-              // Update job status
-              const jobIndex = driverJobs.findIndex(j => j.job === jobId);
-              if (jobIndex >= 0) driverJobs[jobIndex].status = 'allocated';
-              localStorage.setItem(`driver_jobs_${DRIVER_ID}`, JSON.stringify(driverJobs));
-
-              // Show modal + voice
-              document.getElementById('jobWonModal').style.display = 'flex';
-              speak("Congratulations! You won the job!");
-
-              // Auto-open menu to current job
-              if (!isMenuOpen) {
-                document.getElementById('menuBtn').click();
-              } else {
-                renderView('currentJob');
-              }
-            }
-          }
-
           if (topic === `drivers/${DRIVER_ID}/presets`) {
             handlePassengerPreset(data);
             return;
@@ -1095,6 +1092,23 @@ function showJobPanel(job) {
           if (topic === "chat/group") {
             if (data.sender !== DRIVER_ID) {
               addMessage('group', data.sender, data.text, data.timestamp);
+            }
+          }
+          // 👇 JOB WON HANDLING
+          if (topic.startsWith("jobs/") && topic.endsWith(`/result/${DRIVER_ID}`)) {
+            if (data.result === "won") {
+              const jobIndex = driverJobs.findIndex(j => j.job === topic.split('/')[1]);
+              if (jobIndex >= 0) driverJobs[jobIndex].status = 'allocated';
+              localStorage.setItem(`driver_jobs_${DRIVER_ID}`, JSON.stringify(driverJobs));
+              // Show simple modal
+              const modal = document.getElementById('jobWonModal');
+              modal.style.display = 'flex';
+              speakFeedback("You won the job!");
+              // Auto-close after 3s
+              setTimeout(() => { modal.style.display = 'none'; }, 3000);
+              // Open menu
+              if (!isMenuOpen) document.getElementById('menuBtn').click();
+              else renderView('currentJob');
             }
           }
         } catch (e) {
@@ -1153,9 +1167,6 @@ function showJobPanel(job) {
         });
       });
       document.getElementById('logOffBtn').addEventListener('click', () => setDriverPresence('offline'));
-      document.getElementById('closeJobWonModal').addEventListener('click', () => {
-        document.getElementById('jobWonModal').style.display = 'none';
-      });
 
       // ✅ FIXED GLOBAL CLICK HANDLER
       document.addEventListener('click', (e) => {
@@ -1163,7 +1174,6 @@ function showJobPanel(job) {
         if (!dropdown.contains(e.target) && e.target.id !== 'appTitleContainer') {
           dropdown.style.display = 'none';
         }
-
         const isClickInsideMenu = menuPanel.contains(e.target) || e.target === menuBtn;
         if (isMenuOpen && !isClickInsideMenu) {
           menuPanel.classList.remove('active');
@@ -1171,7 +1181,6 @@ function showJobPanel(job) {
         }
       });
 
-      // Start
       initMapImmediately();
       if ('serviceWorker' in navigator) requestFCMToken();
     }
@@ -1184,7 +1193,3 @@ function showJobPanel(job) {
   </script>
 </body>
 </html>
-
-
-
-
