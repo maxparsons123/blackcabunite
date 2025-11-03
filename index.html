@@ -800,54 +800,55 @@
       if (isMenuOpen && currentView === 'jobHistory') renderJobHistory();
     }
     function showJobPanel(job) {
-      if (seenJobIds.has(job.job)) return;
-      seenJobIds.add(job.job);
-      isJobActive = true;
-      currentJob = job;
-      document.getElementById('jobPanel').style.display = 'block';
-      document.getElementById('pickupLocation').textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
-      document.getElementById('customerName').textContent = job.customerName || 'Not provided';
-      document.getElementById('customerPhone').textContent = job.customerPhone || 'Not provided';
-      document.getElementById('jobTimer').style.display = 'block';
-      let sec = 30;
-      document.getElementById('timerSeconds').textContent = sec;
-      jobTimerInterval = setInterval(() => {
-        sec--;
-        document.getElementById('timerSeconds').textContent = sec;
-        if (sec <= 0) {
-          clearInterval(jobTimerInterval);
-          document.getElementById('jobPanel').style.display = 'none';
-          isJobActive = false;
-          currentJob = null;
-          document.getElementById('micIndicator').style.display = 'none';
-        }
-      }, 1000);
+  if (jobTimerInterval) {
+    clearInterval(jobTimerInterval);
+    jobTimerInterval = null;
+  }
+  stopVoiceListener();
+  currentJob = job;
+  isJobActive = true;
+  jobPanel.style.display = 'block';
 
-      // 🔥 ADD NAVIGATION & CALL BUTTONS
-      const navBtn = document.createElement('button');
-      navBtn.className = 'settings-btn';
-      navBtn.textContent = '🧭 Navigate to Pickup';
-      navBtn.onclick = () => {
-        const url = `https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}`;
-        window.open(url, '_blank');
-      };
-      const callBtn = document.createElement('button');
-      callBtn.className = 'settings-btn';
-      callBtn.style.background = '#28a745';
-      callBtn.textContent = '📞 Call Customer';
-      callBtn.onclick = () => {
-        const phone = job.customerPhone.replace(/\D/g, '');
-        if (phone) window.location.href = `tel:${phone}`;
-        else alert("Phone not available.");
-      };
-      const jobInfo = document.getElementById('jobInfo');
-      jobInfo.appendChild(navBtn);
-      jobInfo.appendChild(callBtn);
+  // ✅ ONLY essential info
+  pickupLocation.textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
+  customerName.textContent = job.customerName || 'Not provided';
+  customerPhone.textContent = job.customerPhone || 'Not provided';
 
-      speak(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}`, () => {
-        promptForVoiceResponse();
-      });
+  const timerEl = document.getElementById('jobTimer');
+  const secondsEl = document.getElementById('timerSeconds');
+  timerEl.style.display = 'block';
+  secondsEl.textContent = '30';
+  let secondsLeft = 30;
+  jobTimerInterval = setInterval(() => {
+    secondsLeft--;
+    secondsEl.textContent = secondsLeft;
+    if (secondsLeft <= 0) {
+      clearInterval(jobTimerInterval);
+      jobTimerInterval = null;
+      cleanupJob();
+      processNextJob();
     }
+  }, 1000);
+
+  // Voice prompt
+  speakFeedback(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`, () => {
+    voiceAttemptCount = 0;
+    promptForVoiceResponse();
+  });
+
+  // Request wake lock for job screen
+  async function requestJobWakeLock() {
+    if ('wakeLock' in navigator) {
+      try {
+        jobWakeLock = await navigator.wakeLock.request('screen');
+        jobWakeLock.addEventListener('release', () => { jobWakeLock = null; });
+      } catch (err) {
+        console.warn('Job Wake Lock failed:', err);
+      }
+    }
+  }
+  requestJobWakeLock();
+}
 
     // ===== MENU SYSTEM =====
     function renderCurrentJob() {
@@ -1179,3 +1180,4 @@
   </script>
 </body>
 </html>
+
