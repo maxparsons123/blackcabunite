@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v7.5</title>
+  <title>Black Cab Unite v7.6</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -574,7 +574,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v7.5</div>
+      <div id="appTitle">Black Cab Unite v7.6</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -636,7 +636,6 @@
       <button id="presetReply2" class="replyBtn">Arrived</button>
     </div>
   </div>
-
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
@@ -683,6 +682,8 @@
     let isSpeaking = false;
     let voiceAttemptCount = 0;
     const MAX_VOICE_ATTEMPTS = 3;
+    const LISTEN_TIMEOUT_MS = 8000;
+    const TTS_TO_MIC_DELAY_MS = 600;
 
     seenJobIds = new Set([...driverJobs.map(j => j.job), ...pendingJobs.map(p => p.job)]);
 
@@ -692,20 +693,33 @@
     }
 
     // ===== TTS / STT =====
-    function speak(text, onEnd = null) {
+    function showMicIndicator() {
+      document.getElementById('micIndicator').style.display = 'block';
+    }
+    function hideMicIndicator() {
+      document.getElementById('micIndicator').style.display = 'none';
+    }
+    function speakFeedback(message, onDone = null) {
       if (!('speechSynthesis' in window)) {
-        if (onEnd) setTimeout(onEnd, 100);
+        if (onDone) setTimeout(onDone, 100);
         return;
       }
       isSpeaking = true;
+      stopVoiceListener();
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.lang = 'en-GB';
+      utterance.rate = 0.9;
+      utterance.onend = () => {
+        isSpeaking = false;
+        if (onDone) setTimeout(onDone, TTS_TO_MIC_DELAY_MS);
+      };
+      utterance.onerror = () => {
+        isSpeaking = false;
+        if (onDone) setTimeout(onDone, TTS_TO_MIC_DELAY_MS);
+      };
       speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'en-GB';
-      u.rate = 0.9;
-      u.onend = () => { isSpeaking = false; if (onEnd) onEnd(); };
-      speechSynthesis.speak(u);
+      speechSynthesis.speak(utterance);
     }
-
     function startVoiceListener() {
       if (isSpeaking || speechRecognition) return;
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -714,22 +728,84 @@
       speechRecognition.lang = 'en-US';
       speechRecognition.continuous = false;
       speechRecognition.interimResults = false;
+      let timeoutId = null;
+      speechRecognition.onstart = () => {
+        showMicIndicator();
+        timeoutId = setTimeout(() => {
+          if (speechRecognition) speechRecognition.stop();
+        }, LISTEN_TIMEOUT_MS);
+      };
       speechRecognition.onresult = (e) => {
-        const t = e.results[0][0].transcript.toLowerCase();
-        if (/\baccept\b/.test(t)) respondToJob(true);
-        else if (/\breject\b/.test(t)) respondToJob(false);
-        else { voiceAttemptCount++; startVoiceListener(); }
+        clearTimeout(timeoutId);
+        const transcript = e.results[0][0].transcript.toLowerCase();
+        if (/\baccept\b/.test(transcript) && !/\breject\b/.test(transcript)) {
+          voiceAttemptCount = 0;
+          respondToJob(true);
+          speakFeedback("Job accepted. Thank you.");
+        } else if (/\breject\b/.test(transcript)) {
+          voiceAttemptCount = 0;
+          respondToJob(false);
+          speakFeedback("Job rejected. Understood.");
+        } else {
+          voiceAttemptCount++;
+          stopVoiceListener();
+          promptForVoiceResponse();
+        }
         speechRecognition = null;
       };
-      speechRecognition.onerror = () => { speechRecognition = null; };
-      speechRecognition.onend = () => { speechRecognition = null; };
+      speechRecognition.onerror = (e) => {
+        clearTimeout(timeoutId);
+        console.error("Voice error:", e.error);
+        stopVoiceListener();
+        voiceAttemptCount++;
+        if (voiceAttemptCount < MAX_VOICE_ATTEMPTS) {
+          setTimeout(promptForVoiceResponse, 1000);
+        } else {
+          speakFeedback("Voice system error. Please use the buttons.");
+        }
+      };
+      speechRecognition.onend = () => {
+        clearTimeout(timeoutId);
+        hideMicIndicator();
+        speechRecognition = null;
+        if (isJobActive && jobPanel.style.display === 'block' && voiceAttemptCount > 0 && voiceAttemptCount < MAX_VOICE_ATTEMPTS) {
+          setTimeout(promptForVoiceResponse, 800);
+        }
+      };
       try { speechRecognition.start(); } catch (e) {}
     }
-
+    function stopVoiceListener() {
+      hideMicIndicator();
+      if (speechRecognition) {
+        speechRecognition.abort();
+        speechRecognition = null;
+      }
+    }
     function promptForVoiceResponse() {
       if (isSpeaking || !isJobActive) return;
-      document.getElementById('micIndicator').style.display = 'block';
-      setTimeout(startVoiceListener, 600);
+      if (voiceAttemptCount === 0) {
+        setTimeout(startVoiceListener, TTS_TO_MIC_DELAY_MS);
+      } else if (voiceAttemptCount < MAX_VOICE_ATTEMPTS) {
+        speakFeedback("Did not hear you. Please say ‘accept’ or ‘reject’.", () => {
+          startVoiceListener();
+        });
+      } else {
+        speakFeedback("Let me repeat the job.", () => {
+          const job = currentJob;
+          if (job) {
+            const utterance = new SpeechSynthesisUtterance(
+              `Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`
+            );
+            utterance.lang = 'en-GB';
+            utterance.rate = 0.9;
+            utterance.onend = () => {
+              voiceAttemptCount = 0;
+              setTimeout(promptForVoiceResponse, TTS_TO_MIC_DELAY_MS);
+            };
+            speechSynthesis.speak(utterance);
+          }
+        });
+      }
     }
 
     // ===== PASSENGER PRESETS =====
@@ -739,10 +815,9 @@
         data.presetType === "cancel_ride" ? "Passenger wants to cancel the ride." :
         data.presetType === "call_driver" ? "Passenger is trying to call you." :
         `Passenger message: ${data.presetType}`;
-      speak(msg);
+      speakFeedback(msg);
       showPassengerPopup(msg, data);
     }
-
     function showPassengerPopup(msg, data) {
       document.getElementById('passengerPopupMsg').textContent = msg;
       document.getElementById('passengerPopup').style.display = 'block';
@@ -750,7 +825,6 @@
       document.getElementById('presetReply1').onclick = () => sendPresetReply('on_my_way', data);
       document.getElementById('presetReply2').onclick = () => sendPresetReply('arrived', data);
     }
-
     function sendPresetReply(type, data) {
       if (!client) return;
       client.publish('server/preset_replies', JSON.stringify({
@@ -785,7 +859,6 @@
         }));
       }
     }
-
     function publishLocationThrottled(gpsData) {
       if (!client?.connected) return;
       client.publish(`drivers/${DRIVER_ID}/location`, JSON.stringify({
@@ -813,10 +886,8 @@
         console.error('FCM error:', err);
       }
     }
-
     function publishFcmToken() {
       if (!client?.connected || !fcmToken || !DRIVER_ID) return;
-      // ✅ CORRECT TOPIC FOR PUB APP
       client.publish('drivers/tokens', JSON.stringify({
         driverId: DRIVER_ID,
         fcmToken: fcmToken,
@@ -843,7 +914,6 @@
       speechSynthesis.cancel();
       addJobToHistory(currentJob, accepted ? "bidding" : "rejected");
     }
-
     function addJobToHistory(jobData, initialStatus = 'queued') {
       if (!jobData) return;
       const job = { ...jobData, status: initialStatus, timestamp: Date.now(), driver: DRIVER_ID };
@@ -852,7 +922,6 @@
       localStorage.setItem(`driver_jobs_${DRIVER_ID}`, JSON.stringify(driverJobs));
       if (isMenuOpen && currentView === 'jobHistory') renderJobHistory();
     }
-
     function showJobPanel(job) {
       if (seenJobIds.has(job.job)) return;
       seenJobIds.add(job.job);
@@ -876,7 +945,7 @@
           document.getElementById('micIndicator').style.display = 'none';
         }
       }, 1000);
-      speak(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}`, () => {
+      speakFeedback(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}`, () => {
         promptForVoiceResponse();
       });
     }
@@ -897,7 +966,6 @@
         </div>
       `;
     }
-
     function renderJobHistory() {
       const el = document.getElementById('menuContent');
       el.innerHTML = '';
@@ -918,7 +986,6 @@
         el.appendChild(jobEl);
       });
     }
-
     function renderChatView() {
       document.getElementById('menuContent').innerHTML = `
         <div id="chatMessages" style="flex:1;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;"></div>
@@ -933,7 +1000,6 @@
         if (e.key === 'Enter') sendChatMessage();
       });
     }
-
     function renderChatMessages() {
       const el = document.getElementById('chatMessages');
       if (!el) return;
@@ -947,7 +1013,6 @@
       });
       el.scrollTop = el.scrollHeight;
     }
-
     function sendChatMessage() {
       const input = document.getElementById('chatInput');
       const text = input?.value.trim();
@@ -956,7 +1021,6 @@
       addMessage('group', DRIVER_ID, text);
       input.value = '';
     }
-
     function addMessage(chatId, sender, text, timestamp = Date.now()) {
       if (!chatMessages[chatId]) chatMessages[chatId] = [];
       chatMessages[chatId].push({ sender, text, timestamp });
@@ -966,7 +1030,6 @@
       localStorage.setItem(`chat_group_${DRIVER_ID}`, JSON.stringify(chatMessages.group));
       if (isMenuOpen && currentView === 'chat') renderChatMessages();
     }
-
     function renderSettingsView() {
       document.getElementById('menuContent').innerHTML = `
         <div class="settings-group">
@@ -994,7 +1057,6 @@
         }
       });
     }
-
     function renderView(view) {
       currentView = view;
       document.querySelectorAll('.menu-nav-btn').forEach(btn => {
@@ -1017,7 +1079,6 @@
       <circle cx="15" cy="28" r="4" fill="#fff" stroke="#000" stroke-width="1"/>
       <circle cx="43" cy="28" r="4" fill="#fff" stroke="#000" stroke-width="1"/>
     </svg>`;
-
     function createBlackCabIcon(heading = 0) {
       const div = document.createElement('div');
       div.innerHTML = BLACK_CAB_SVG;
@@ -1025,7 +1086,6 @@
       svg.style.transform = `rotate(${heading}deg)`;
       return L.divIcon({ html: svg.outerHTML, iconSize: [58, 36], iconAnchor: [29, 18], className: 'taxi-marker' });
     }
-
     function initMapImmediately() {
       document.getElementById('loadingOverlay').style.display = 'none';
       map = L.map('map').setView([52.4068, -1.5197], 13);
@@ -1036,7 +1096,6 @@
       }).addTo(map);
       initGPS();
     }
-
     function initGPS() {
       if (!('geolocation' in navigator)) {
         document.getElementById('status').innerHTML = '<span class="gps-source gps-poor"></span>Geolocation not supported.';
@@ -1152,12 +1211,19 @@
         });
       });
       document.getElementById('logOffBtn').addEventListener('click', () => setDriverPresence('offline'));
+
+      // Close dropdown on outside click
       document.addEventListener('click', () => {
         document.getElementById('statusDropdown').style.display = 'none';
         if (isMenuOpen) {
           document.getElementById('menuPanel').classList.remove('active');
           isMenuOpen = false;
         }
+      });
+
+      // Prevent dropdown from closing when clicked inside
+      document.getElementById('statusDropdown').addEventListener('click', (e) => {
+        e.stopPropagation();
       });
 
       // Start
@@ -1173,4 +1239,3 @@
   </script>
 </body>
 </html>
-
