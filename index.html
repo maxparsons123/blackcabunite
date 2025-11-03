@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.1 — Debug Mode</title>
+  <title>Black Cab Unite v8.0</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -25,7 +25,6 @@
       height:100%;
       z-index:1;
     }
-    /* Black Cab Unite Header Banner */
     #headerBanner {
       position: absolute;
       top: 0;
@@ -93,7 +92,6 @@
     #menuBtn:active {
       transform: scale(0.95);
     }
-    /* === PASSENGER PRESET POPUP === */
     #passengerPopup {
       display: none;
       position: fixed;
@@ -124,7 +122,6 @@
     .replyBtn:nth-child(2) {
       background: #1f6feb;
     }
-    /* Status bar at bottom */
     #status { 
       position: absolute;
       bottom: 80px;
@@ -151,7 +148,6 @@
     .gps-gps { background: #28a745; }
     .gps-network { background: #17a2b8; }
     .gps-poor { background: #ffc107; }
-    /* Job panel */
     #jobPanel { 
       position: absolute;
       bottom: 0;
@@ -216,7 +212,6 @@
       background: linear-gradient(135deg, #dc3545, #e83e8c);
       color: white;
     }
-    /* Glowing Mic Indicator */
     #micIndicator {
       text-align: center;
       margin: 16px 0;
@@ -244,7 +239,6 @@
       color: #555;
       margin-top: 8px;
     }
-    /* Loading overlay */
     #loadingOverlay {
       position: absolute;
       top: 0;
@@ -273,7 +267,6 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    /* Main Menu Panel */
     #menuPanel {
       position: absolute;
       bottom: 0;
@@ -376,7 +369,6 @@
     .status-completed { background: #e2e3e5; color: #41464b; }
     .status-lost, .status-rejected, .status-expired { background: #f8d7da; color: #842029; }
     .status-queued { background: #fff3cd; color: #856404; }
-    /* Chat */
     #chatMessages {
       flex: 1;
       padding: 16px;
@@ -425,7 +417,6 @@
       font-size: 20px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
-    /* Settings */
     .settings-group {
       margin-bottom: 24px;
     }
@@ -464,57 +455,18 @@
       background: #1958c4;
       box-shadow: 0 6px 16px rgba(31, 111, 235, 0.4);
     }
-    .settings-info {
-      background: #f8f9fa;
-      padding: 16px;
-      border-radius: 12px;
-      font-size: 14px;
-      color: #666;
-      line-height: 1.5;
-    }
-    /* Enhanced Taxi Marker */
     .taxi-marker {
       background: transparent !important;
       border: none !important;
       box-shadow: none !important;
     }
-
-    /* =============== DEBUG CONSOLE =============== */
-    #debugConsole {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      max-height: 150px;
-      background: #1e1e1e;
-      color: #d4d4d4;
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-      padding: 8px;
-      overflow-y: auto;
-      z-index: 9999;
-      display: none; /* Hidden by default — press `D` to toggle */
-      border-top: 1px solid #444;
-    }
-    #debugConsole.shown {
-      display: block;
-    }
-    .debug-entry {
-      margin: 2px 0;
-      white-space: pre-wrap;
-    }
-    .debug-entry.mqtt { color: #4ec9b0; }
-    .debug-entry.gps { color: #ce9178; }
-    .debug-entry.voice { color: #dcdcaa; }
-    .debug-entry.ui { color: #9cdcfe; }
-    .debug-entry.error { color: #f48771; }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.1</div>
+      <div id="appTitle">Black Cab Unite v8.0</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -569,45 +521,9 @@
     </div>
   </div>
 
-  <!-- DEBUG CONSOLE -->
-  <div id="debugConsole" class="shown">
-    <div class="debug-entry ui">[DEBUG] Debug console initialized. Press 'D' to toggle visibility.</div>
-  </div>
-
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  <!-- DEBUG HELPER -->
   <script>
-    // ============== DEBUG UTILITIES ==============
-    let debugConsoleVisible = true;
-    const debugConsole = document.getElementById('debugConsole');
-
-    function debugLog(category, message) {
-      const now = new Date().toISOString().slice(11, 23);
-      const entry = `[${now}] [${category.toUpperCase()}] ${message}`;
-      console.log(entry);
-      if (debugConsoleVisible) {
-        const div = document.createElement('div');
-        div.className = `debug-entry ${category}`;
-        div.textContent = entry;
-        debugConsole.appendChild(div);
-        debugConsole.scrollTop = debugConsole.scrollHeight;
-      }
-    }
-
-    // Toggle debug console with 'D' key
-    document.addEventListener('keydown', (e) => {
-      if (e.key.toLowerCase() === 'd') {
-        debugConsoleVisible = !debugConsoleVisible;
-        debugConsole.classList.toggle('shown', debugConsoleVisible);
-        debugLog('ui', `Debug console ${debugConsoleVisible ? 'shown' : 'hidden'}`);
-      }
-    });
-  </script>
-
-  <script>
-    // ===== GLOBAL SCOPE =====
-    debugLog('ui', 'Initializing Black Cab Unite v8.0 (Debug Build)');
     const firebaseConfig = {
       apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
       authDomain: "cabunite.firebaseapp.com",
@@ -619,7 +535,6 @@
     firebase.initializeApp(firebaseConfig);
     const messaging = firebase.messaging();
 
-    // ===== GLOBAL STATE =====
     let fcmToken = null;
     let DRIVER_ID = localStorage.getItem('driver_id');
     let driverPresence = localStorage.getItem('driver_presence') || 'available';
@@ -644,18 +559,13 @@
     const TTS_TO_MIC_DELAY_MS = 600;
 
     seenJobIds = new Set([...driverJobs.map(j => j.job), ...pendingJobs.map(p => p.job)]);
-    debugLog('ui', `Loaded ${driverJobs.length} jobs, ${pendingJobs.length} pending, presence: ${driverPresence}`);
 
-    // ===== VALIDATION =====
     function validateDriverId(id) {
       return id && /^[a-zA-Z0-9_-]+$/.test(id);
     }
 
-    // ===== TTS / STT =====
     function speak(text, onEnd = null) {
-      debugLog('voice', `Speaking: "${text}"`);
       if (!('speechSynthesis' in window)) {
-        debugLog('voice', 'SpeechSynthesis not supported');
         if (onEnd) setTimeout(onEnd, 100);
         return;
       }
@@ -666,29 +576,21 @@
       u.rate = 0.9;
       u.onend = () => {
         isSpeaking = false;
-        debugLog('voice', 'Speech ended');
         if (onEnd) setTimeout(onEnd, TTS_TO_MIC_DELAY_MS);
       };
       speechSynthesis.speak(u);
     }
 
     function startVoiceListener() {
-      if (isSpeaking || speechRecognition) {
-        debugLog('voice', 'Voice listener already active or speaking');
-        return;
-      }
+      if (isSpeaking || speechRecognition) return;
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        debugLog('voice', 'SpeechRecognition not supported');
-        return;
-      }
+      if (!SpeechRecognition) return;
       speechRecognition = new SpeechRecognition();
       speechRecognition.lang = 'en-US';
       speechRecognition.continuous = false;
       speechRecognition.interimResults = false;
       speechRecognition.onresult = (e) => {
         const t = e.results[0][0].transcript.toLowerCase();
-        debugLog('voice', `Recognized: "${t}"`);
         if (/\baccept\b/.test(t) && !/\breject\b/.test(t)) {
           voiceAttemptCount = 0;
           respondToJob(true);
@@ -704,37 +606,28 @@
         }
         speechRecognition = null;
       };
-      speechRecognition.onerror = (e) => {
-        debugLog('error', `Speech recognition error: ${e.error}`);
-        speechRecognition = null;
-      };
-      speechRecognition.onend = () => {
-        debugLog('voice', 'Speech recognition ended');
-        speechRecognition = null;
-      };
-      try {
-        speechRecognition.start();
-        debugLog('voice', 'Voice listener started');
-      } catch (e) {
-        debugLog('error', `Failed to start speech recognition: ${e.message}`);
-        speechRecognition = null;
-      }
+      speechRecognition.onerror = () => { speechRecognition = null; };
+      speechRecognition.onend = () => { speechRecognition = null; };
+      try { speechRecognition.start(); } catch (e) {}
     }
 
     function stopVoiceListener() {
       if (speechRecognition) {
         speechRecognition.abort();
         speechRecognition = null;
-        debugLog('voice', 'Voice listener stopped');
       }
     }
 
     function promptForVoiceResponse() {
       if (isSpeaking || !isJobActive) return;
+      // 🔥 CRITICAL FIX: Show mic indicator when prompting
+      document.getElementById('micIndicator').style.display = 'block';
+      
       if (voiceAttemptCount === 0) {
         setTimeout(startVoiceListener, TTS_TO_MIC_DELAY_MS);
       } else if (voiceAttemptCount < MAX_VOICE_ATTEMPTS) {
         speak("Did not hear you. Please say ‘accept’ or ‘reject’.", () => {
+          document.getElementById('micIndicator').style.display = 'block';
           startVoiceListener();
         });
       } else {
@@ -748,6 +641,7 @@
             utterance.rate = 0.9;
             utterance.onend = () => {
               voiceAttemptCount = 0;
+              document.getElementById('micIndicator').style.display = 'block';
               setTimeout(promptForVoiceResponse, TTS_TO_MIC_DELAY_MS);
             };
             speechSynthesis.speak(utterance);
@@ -756,9 +650,7 @@
       }
     }
 
-    // ===== PASSENGER PRESETS =====
     function handlePassengerPreset(data) {
-      debugLog('mqtt', `Received passenger preset: ${JSON.stringify(data)}`);
       const msg = 
         data.presetType === "where_are_you" ? "Passenger asks: Where are you?" :
         data.presetType === "cancel_ride" ? "Passenger wants to cancel the ride." :
@@ -783,14 +675,11 @@
         jobId: data?.jobId,
         timestamp: Date.now()
       }));
-      debugLog('mqtt', `Sent preset reply: ${type}`);
       document.getElementById('passengerPopup').style.display = 'none';
     }
 
-    // ===== STATUS & LOCATION =====
     function setDriverPresence(status) {
       if (!['available', 'busy', 'offline'].includes(status)) return;
-      debugLog('ui', `Setting driver presence to: ${status}`);
       driverPresence = status;
       localStorage.setItem('driver_presence', status);
       const caption = document.getElementById('statusCaption');
@@ -799,7 +688,6 @@
       if (status === 'offline' && gpsWatchId) {
         navigator.geolocation.clearWatch(gpsWatchId);
         gpsWatchId = null;
-        debugLog('gps', 'GPS watch stopped (offline)');
       } else if (status !== 'offline' && !gpsWatchId) {
         initGPS();
       }
@@ -821,28 +709,20 @@
         ts: Date.now(),
         heading: Math.round(gpsData.heading || 0)
       }));
-      debugLog('gps', `Published location: ${gpsData.lat.toFixed(5)}, ${gpsData.lng.toFixed(5)} | Acc: ${gpsData.accuracy}`);
     }
 
-    // ===== FCM =====
     async function requestFCMToken() {
       try {
         const perm = await Notification.requestPermission();
-        if (perm !== 'granted') {
-          debugLog('ui', 'Notification permission denied');
-          return;
-        }
+        if (perm !== 'granted') return;
         const reg = await navigator.serviceWorker.register('/blackcabunite/firebase-messaging-sw.js', { scope: '/blackcabunite/' });
         fcmToken = await messaging.getToken({
           vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
           serviceWorkerRegistration: reg
         });
-        if (fcmToken) {
-          debugLog('ui', 'FCM token obtained');
-          publishFcmToken();
-        }
+        if (fcmToken) publishFcmToken();
       } catch (err) {
-        debugLog('error', `FCM error: ${err.message}`);
+        console.error('FCM error:', err);
       }
     }
     function publishFcmToken() {
@@ -852,13 +732,10 @@
         fcmToken: fcmToken,
         ts: Date.now()
       }));
-      debugLog('mqtt', `Published FCM token for driver ${DRIVER_ID}`);
     }
 
-    // ===== JOB HANDLING =====
     function respondToJob(accepted) {
       if (!currentJob || !client) return;
-      debugLog('ui', `Job ${currentJob.job} ${accepted ? 'ACCEPTED' : 'REJECTED'}`);
       client.publish(`jobs/${currentJob.job}/status`, JSON.stringify({
         job: currentJob.job,
         driver: DRIVER_ID,
@@ -871,6 +748,7 @@
       document.getElementById('jobPanel').style.display = 'none';
       isJobActive = false;
       currentJob = null;
+      // 🔥 Hide mic only on final response
       document.getElementById('micIndicator').style.display = 'none';
       speechSynthesis.cancel();
       addJobToHistory(currentJob, accepted ? "bidding" : "rejected");
@@ -881,15 +759,10 @@
       driverJobs.unshift(job);
       if (driverJobs.length > 50) driverJobs = driverJobs.slice(0, 50);
       localStorage.setItem(`driver_jobs_${DRIVER_ID}`, JSON.stringify(driverJobs));
-      debugLog('ui', `Added job ${jobData.job} to history with status ${initialStatus}`);
       if (isMenuOpen && currentView === 'jobHistory') renderJobHistory();
     }
     function showJobPanel(job) {
-      debugLog('ui', `Showing job panel for job ${job.job}`);
-      if (seenJobIds.has(job.job)) {
-        debugLog('ui', `Job ${job.job} already seen — skipping`);
-        return;
-      }
+      if (seenJobIds.has(job.job)) return;
       seenJobIds.add(job.job);
       isJobActive = true;
       currentJob = job;
@@ -909,7 +782,6 @@
           isJobActive = false;
           currentJob = null;
           document.getElementById('micIndicator').style.display = 'none';
-          debugLog('ui', `Job ${job.job} expired`);
         }
       }, 1000);
       speak(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}`, () => {
@@ -917,15 +789,13 @@
       });
     }
 
-    // ===== MENU SYSTEM =====
     function renderCurrentJob() {
       const allocated = driverJobs.find(j => j.status === 'allocated');
-      const content = document.getElementById('menuContent');
       if (!allocated) {
-        content.innerHTML = '<div class="no-current-job"><div class="icon">🚕</div><div>No active job</div></div>';
+        document.getElementById('menuContent').innerHTML = '<div class="no-current-job"><div class="icon">🚕</div><div>No active job</div></div>';
         return;
       }
-      content.innerHTML = `
+      document.getElementById('menuContent').innerHTML = `
         <div class="current-job-info">
           <div class="job-detail"><div class="job-label">Job ID</div><div class="job-value">${allocated.job}</div></div>
           <div class="job-detail"><div class="job-label">Customer</div><div class="job-value">${allocated.customerName}</div></div>
@@ -986,7 +856,6 @@
       const text = input?.value.trim();
       if (!text || !client) return;
       client.publish('chat/group', JSON.stringify({ sender: DRIVER_ID, text, timestamp: Date.now() }));
-      debugLog('mqtt', `Sent chat message: ${text}`);
       addMessage('group', DRIVER_ID, text);
       input.value = '';
     }
@@ -998,7 +867,6 @@
       }
       localStorage.setItem(`chat_group_${DRIVER_ID}`, JSON.stringify(chatMessages.group));
       if (isMenuOpen && currentView === 'chat') renderChatMessages();
-      debugLog('ui', `Added ${sender === DRIVER_ID ? 'sent' : 'received'} message to chat`);
     }
     function renderSettingsView() {
       document.getElementById('menuContent').innerHTML = `
@@ -1016,23 +884,18 @@
         if (newId && validateDriverId(newId)) {
           localStorage.setItem('driver_id', newId);
           DRIVER_ID = newId;
-          debugLog('ui', `Driver ID updated to: ${newId}`);
           alert("Driver ID updated. Reload to apply fully.");
-        } else {
-          alert("Invalid Driver ID. Use letters, numbers, - or _");
         }
       });
       document.getElementById('clearJobsBtn').addEventListener('click', () => {
         if (confirm("Clear all job history?")) {
           driverJobs = [];
           localStorage.setItem(`driver_jobs_${DRIVER_ID}`, '[]');
-          debugLog('ui', 'Job history cleared');
           renderJobHistory();
         }
       });
     }
     function renderView(view) {
-      debugLog('ui', `Rendering view: ${view}`);
       currentView = view;
       document.querySelectorAll('.menu-nav-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.view === view);
@@ -1043,7 +906,6 @@
       else if (view === 'settings') renderSettingsView();
     }
 
-    // ===== MAP & GPS =====
     const BLACK_CAB_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 58 36" width="58" height="36">
       <rect x="4" y="14" width="50" height="14" rx="3" ry="3" fill="#000"/>
       <path d="M18 14v-4c0-3 2-5 5-5h12c3 0 5 2 5 5v4h-22z" fill="#000"/>
@@ -1074,12 +936,10 @@
     function initGPS() {
       if (!('geolocation' in navigator)) {
         document.getElementById('status').innerHTML = '<span class="gps-source gps-poor"></span>Geolocation not supported.';
-        debugLog('error', 'Geolocation not supported');
         connectMQTT();
         return;
       }
       document.getElementById('status').innerHTML = '<span class="gps-source gps-poor"></span>Searching for GPS...';
-      debugLog('gps', 'Initializing GPS...');
       if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
       gpsWatchId = navigator.geolocation.watchPosition(
         pos => {
@@ -1102,19 +962,15 @@
         },
         err => {
           document.getElementById('status').textContent = "GPS error: " + err.message;
-          debugLog('error', `GPS error: ${err.message}`);
         },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 }
       );
       connectMQTT();
     }
 
-    // ===== MQTT =====
     function connectMQTT() {
-      debugLog('mqtt', 'Connecting to MQTT broker...');
       client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", { reconnectPeriod: 1000 });
       client.on('connect', () => {
-        debugLog('mqtt', `✅ Connected as ${DRIVER_ID}`);
         document.getElementById('status').textContent = `✅ Connected as ${DRIVER_ID}`;
         client.subscribe("pubs/requests/+");
         client.subscribe("drivers/+/location");
@@ -1128,7 +984,6 @@
       client.on('message', (topic, msg) => {
         try {
           const data = JSON.parse(msg.toString());
-          debugLog('mqtt', `Received on ${topic}: ${JSON.stringify(data)}`);
           if (topic === `drivers/${DRIVER_ID}/presets`) {
             handlePassengerPreset(data);
             return;
@@ -1149,16 +1004,13 @@
             }
           }
         } catch (e) {
-          debugLog('error', `MQTT parse error: ${e.message}`);
+          console.error("MQTT error:", e);
         }
       });
     }
 
-    // ===== INIT =====
     function initApp() {
-      debugLog('ui', 'Starting app initialization...');
       if (!DRIVER_ID || !validateDriverId(DRIVER_ID)) {
-        debugLog('ui', 'Driver ID missing or invalid — prompting user');
         while (!DRIVER_ID || !validateDriverId(DRIVER_ID)) {
           DRIVER_ID = prompt("Enter your driver ID (letters, numbers, - _):");
           if (DRIVER_ID === null) DRIVER_ID = 'driver-' + Math.random().toString(36).substr(2, 8);
@@ -1167,17 +1019,14 @@
         driverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${DRIVER_ID}`)) || [];
         pendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${DRIVER_ID}`)) || [];
         seenJobIds = new Set([...driverJobs.map(j => j.job), ...pendingJobs.map(p => p.job)]);
-        debugLog('ui', `Driver ID set to: ${DRIVER_ID}`);
       }
 
-      // ✅ ASSIGN DOM ELEMENTS
       const menuPanel = document.getElementById('menuPanel');
       const menuBtn = document.getElementById('menuBtn');
 
-      // ===== MENU EVENT HANDLERS (FIXED) =====
+      // ✅ FIXED MENU TOGGLE
       menuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        debugLog('ui', `Menu button clicked. Current state: ${isMenuOpen ? 'open' : 'closed'}`);
         if (isMenuOpen) {
           menuPanel.classList.remove('active');
           isMenuOpen = false;
@@ -1195,14 +1044,12 @@
         });
       });
 
-      // Other event listeners
       document.getElementById('acceptBtn').addEventListener('click', () => respondToJob(true));
       document.getElementById('rejectBtn').addEventListener('click', () => respondToJob(false));
       document.getElementById('appTitleContainer').addEventListener('click', (e) => {
         e.stopPropagation();
-        const dropdown = document.getElementById('statusDropdown');
-        dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
-        debugLog('ui', `Status dropdown ${dropdown.style.display === 'flex' ? 'shown' : 'hidden'}`);
+        document.getElementById('statusDropdown').style.display = 
+          document.getElementById('statusDropdown').style.display === 'flex' ? 'none' : 'flex';
       });
       document.querySelectorAll('.status-option').forEach(opt => {
         opt.addEventListener('click', () => {
@@ -1212,7 +1059,7 @@
       });
       document.getElementById('logOffBtn').addEventListener('click', () => setDriverPresence('offline'));
 
-      // Global click: close dropdown & menu ONLY if click is outside
+      // ✅ FIXED GLOBAL CLICK HANDLER
       document.addEventListener('click', (e) => {
         const dropdown = document.getElementById('statusDropdown');
         if (!dropdown.contains(e.target) && e.target.id !== 'appTitleContainer') {
@@ -1221,16 +1068,13 @@
 
         const isClickInsideMenu = menuPanel.contains(e.target) || e.target === menuBtn;
         if (isMenuOpen && !isClickInsideMenu) {
-          debugLog('ui', 'Click outside menu → closing');
           menuPanel.classList.remove('active');
           isMenuOpen = false;
         }
       });
 
-      // Start
       initMapImmediately();
       if ('serviceWorker' in navigator) requestFCMToken();
-      debugLog('ui', 'App initialization complete');
     }
 
     if (document.readyState === 'loading') {
