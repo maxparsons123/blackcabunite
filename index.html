@@ -803,7 +803,12 @@
       state.isJobActive = false;
       state.currentJob = null;
     }
-
+function processNextJob() {
+  if (state.isJobActive || state.pendingJobs.length === 0 || state.driverPresence !== 'available') return;
+  const job = state.pendingJobs.shift();
+  saveToStorage(`pending_jobs_${state.DRIVER_ID}`, state.pendingJobs);
+  showJobPanel(job);
+}
     function showJobPanel(job) {
       if (state.seenJobIds.has(job.job)) return;
       state.seenJobIds.add(job.job);
@@ -829,19 +834,24 @@
       });
     }
 
-    function respondToJob(accepted) {
-      if (!state.currentJob || !state.client) return;
-      state.client.publish(`jobs/${state.currentJob.job}/status`, JSON.stringify({
-        job: state.currentJob.job,
-        driver: state.DRIVER_ID,
-        status: accepted ? "bidding" : "rejected",
-        lat: state.driverCoords?.lat || state.currentJob.lat,
-        lng: state.driverCoords?.lng || state.currentJob.lng,
-        ts: Date.now()
-      }));
-      cleanupJob();
-      addJobToHistory(state.currentJob, accepted ? "bidding" : "rejected");
-    }
+function respondToJob(accepted) {
+  if (!state.currentJob || !state.client) return;
+  state.client.publish(`jobs/${state.currentJob.job}/status`, JSON.stringify({
+    job: state.currentJob.job,
+    driver: state.DRIVER_ID,
+    status: accepted ? "bidding" : "rejected",
+    lat: state.driverCoords?.lat || state.currentJob.lat,
+    lng: state.driverCoords?.lng || state.currentJob.lng,
+    ts: Date.now()
+  }));
+  cleanupJob();
+  addJobToHistory(state.currentJob, accepted ? "bidding" : "rejected");
+  
+  // ✅ Check for next job
+  setTimeout(() => {
+    processNextJob();
+  }, 2000);
+}
 
     function addJobToHistory(jobData, initialStatus = 'queued') {
       const job = { ...jobData, status: initialStatus, timestamp: Date.now(), driver: state.DRIVER_ID };
@@ -1237,8 +1247,9 @@
               state.pendingJobs.push(data);
               saveToStorage(`pending_jobs_${state.DRIVER_ID}`, state.pendingJobs);
               addJobToHistory(data, 'queued');
-              if (state.driverPresence === 'available' && !state.isJobActive) {
-                showJobPanel(data);
+            if (state.driverPresence === 'available' && !state.isJobActive) {
+  processNextJob(); // ✅ Process the queue properly
+}
               }
             }
           }
@@ -1423,3 +1434,4 @@
   </script>
 </body>
 </html>
+
