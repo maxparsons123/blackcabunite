@@ -1247,7 +1247,7 @@ function respondToJob(accepted) {
     state.pendingJobs.push(data);
     saveToStorage(`pending_jobs_${state.DRIVER_ID}`, state.pendingJobs);
     addJobToHistory(data, 'queued');
-    if (state.driverPresence === 'available' && !state.isJobActive) {
+    if (state.driverPresence === 'available') {
       processNextJob(); // ✅ FIXED: process queue properly
     }
   }
@@ -1434,5 +1434,6 @@ function respondToJob(accepted) {
   </script>
 </body>
 </html>
+
 
 
