@@ -1051,17 +1051,17 @@
       const menuContent = document.getElementById('menuContent');
       const menuBtn = document.getElementById('menuBtn');
 
-      // ✅ MENU BUTTON FIX
-      menuBtn.addEventListener('click', () => {
-        menuPanel.classList.add('active');
-        isMenuOpen = true;
-        renderView(currentView);
-      });
 
-      // Menu navigation
-      document.querySelectorAll('.menu-nav-btn').forEach(btn => {
-        btn.addEventListener('click', () => renderView(btn.dataset.view));
-      });
+
+menuBtn.addEventListener('click', () => {
+  menuPanel.classList.add('active');
+  isMenuOpen = true;
+  renderView(currentView);
+});
+
+document.querySelectorAll('.menu-nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => renderView(btn.dataset.view));
+});
 
       // Other event listeners
       document.getElementById('acceptBtn').addEventListener('click', () => respondToJob(true));
@@ -1101,4 +1101,5 @@
   </script>
 </body>
 </html>
+
 
