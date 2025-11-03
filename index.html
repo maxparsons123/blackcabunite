@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.0</title>
+  <title>Black Cab Unite v8.1</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -455,6 +455,24 @@
       background: #1958c4;
       box-shadow: 0 6px 16px rgba(31, 111, 235, 0.4);
     }
+    /* Job Won Modal */
+    #jobWonModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 2001;
+      justify-content: center;
+      align-items: center;
+    }
+    #jobWonModal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 320px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
     .taxi-marker {
       background: transparent !important;
       border: none !important;
@@ -466,7 +484,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.0</div>
+      <div id="appTitle">Black Cab Unite v8.1</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -513,6 +531,14 @@
     </div>
     <div id="menuContent"></div>
   </div>
+  <div id="jobWonModal">
+    <div id="jobWonModal-content">
+      <div style="font-size: 60px; margin-bottom: 16px;">🎉</div>
+      <h2 style="margin: 0 0 12px; color: #1f6feb;">You Won the Job!</h2>
+      <p style="margin: 0 0 24px; color: #555;">Get ready to pick up the customer.</p>
+      <button id="closeJobWonModal" class="settings-btn">Close</button>
+    </div>
+  </div>
   <div id="passengerPopup">
     <div id="passengerPopupMsg">Passenger message...</div>
     <div style="display:flex; justify-content:center; gap:10px; margin-top:12px;">
@@ -535,6 +561,16 @@
     firebase.initializeApp(firebaseConfig);
     const messaging = firebase.messaging();
 
+    messaging.onMessage((payload) => {
+      if (Notification.permission === 'granted') {
+        new Notification(payload.notification?.title || "Taxi Update", {
+          body: payload.notification?.body || "You have a new message",
+          icon: '/blackcabunite/icon-192.png'
+        });
+      }
+    });
+
+    // ===== GLOBAL STATE =====
     let fcmToken = null;
     let DRIVER_ID = localStorage.getItem('driver_id');
     let driverPresence = localStorage.getItem('driver_presence') || 'available';
@@ -560,10 +596,12 @@
 
     seenJobIds = new Set([...driverJobs.map(j => j.job), ...pendingJobs.map(p => p.job)]);
 
+    // ===== VALIDATION =====
     function validateDriverId(id) {
       return id && /^[a-zA-Z0-9_-]+$/.test(id);
     }
 
+    // ===== TTS / STT =====
     function speak(text, onEnd = null) {
       if (!('speechSynthesis' in window)) {
         if (onEnd) setTimeout(onEnd, 100);
@@ -620,9 +658,8 @@
 
     function promptForVoiceResponse() {
       if (isSpeaking || !isJobActive) return;
-      // 🔥 CRITICAL FIX: Show mic indicator when prompting
+      // 🔥 FIX: Always show mic on retry
       document.getElementById('micIndicator').style.display = 'block';
-      
       if (voiceAttemptCount === 0) {
         setTimeout(startVoiceListener, TTS_TO_MIC_DELAY_MS);
       } else if (voiceAttemptCount < MAX_VOICE_ATTEMPTS) {
@@ -637,8 +674,6 @@
             const utterance = new SpeechSynthesisUtterance(
               `Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`
             );
-            utterance.lang = 'en-GB';
-            utterance.rate = 0.9;
             utterance.onend = () => {
               voiceAttemptCount = 0;
               document.getElementById('micIndicator').style.display = 'block';
@@ -650,6 +685,7 @@
       }
     }
 
+    // ===== PASSENGER PRESETS =====
     function handlePassengerPreset(data) {
       const msg = 
         data.presetType === "where_are_you" ? "Passenger asks: Where are you?" :
@@ -678,6 +714,7 @@
       document.getElementById('passengerPopup').style.display = 'none';
     }
 
+    // ===== STATUS & LOCATION =====
     function setDriverPresence(status) {
       if (!['available', 'busy', 'offline'].includes(status)) return;
       driverPresence = status;
@@ -711,6 +748,7 @@
       }));
     }
 
+    // ===== FCM =====
     async function requestFCMToken() {
       try {
         const perm = await Notification.requestPermission();
@@ -727,13 +765,14 @@
     }
     function publishFcmToken() {
       if (!client?.connected || !fcmToken || !DRIVER_ID) return;
-      client.publish('drivers/tokens', JSON.stringify({
+      client.publish(`drivers/${DRIVER_ID}/fcm`, JSON.stringify({
         driverId: DRIVER_ID,
         fcmToken: fcmToken,
         ts: Date.now()
       }));
     }
 
+    // ===== JOB HANDLING =====
     function respondToJob(accepted) {
       if (!currentJob || !client) return;
       client.publish(`jobs/${currentJob.job}/status`, JSON.stringify({
@@ -748,7 +787,6 @@
       document.getElementById('jobPanel').style.display = 'none';
       isJobActive = false;
       currentJob = null;
-      // 🔥 Hide mic only on final response
       document.getElementById('micIndicator').style.display = 'none';
       speechSynthesis.cancel();
       addJobToHistory(currentJob, accepted ? "bidding" : "rejected");
@@ -784,11 +822,34 @@
           document.getElementById('micIndicator').style.display = 'none';
         }
       }, 1000);
+
+      // 🔥 ADD NAVIGATION & CALL BUTTONS
+      const navBtn = document.createElement('button');
+      navBtn.className = 'settings-btn';
+      navBtn.textContent = '🧭 Navigate to Pickup';
+      navBtn.onclick = () => {
+        const url = `https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}`;
+        window.open(url, '_blank');
+      };
+      const callBtn = document.createElement('button');
+      callBtn.className = 'settings-btn';
+      callBtn.style.background = '#28a745';
+      callBtn.textContent = '📞 Call Customer';
+      callBtn.onclick = () => {
+        const phone = job.customerPhone.replace(/\D/g, '');
+        if (phone) window.location.href = `tel:${phone}`;
+        else alert("Phone not available.");
+      };
+      const jobInfo = document.getElementById('jobInfo');
+      jobInfo.appendChild(navBtn);
+      jobInfo.appendChild(callBtn);
+
       speak(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}`, () => {
         promptForVoiceResponse();
       });
     }
 
+    // ===== MENU SYSTEM =====
     function renderCurrentJob() {
       const allocated = driverJobs.find(j => j.status === 'allocated');
       if (!allocated) {
@@ -802,6 +863,8 @@
           <div class="job-detail"><div class="job-label">Phone</div><div class="job-value">${allocated.customerPhone}</div></div>
           <div class="job-detail"><div class="job-label">Status</div><div class="job-value"><span class="job-status status-allocated">ALLOCATED</span></div></div>
         </div>
+        <button class="settings-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${allocated.lat},${allocated.lng}', '_blank')">🧭 Navigate to Pickup</button>
+        <button class="settings-btn" style="background:#28a745;" onclick="window.location.href='tel:${allocated.customerPhone.replace(/\\D/g,'')}'">📞 Call Customer</button>
       `;
     }
     function renderJobHistory() {
@@ -906,6 +969,7 @@
       else if (view === 'settings') renderSettingsView();
     }
 
+    // ===== MAP & GPS =====
     const BLACK_CAB_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 58 36" width="58" height="36">
       <rect x="4" y="14" width="50" height="14" rx="3" ry="3" fill="#000"/>
       <path d="M18 14v-4c0-3 2-5 5-5h12c3 0 5 2 5 5v4h-22z" fill="#000"/>
@@ -968,11 +1032,13 @@
       connectMQTT();
     }
 
+    // ===== MQTT =====
     function connectMQTT() {
       client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", { reconnectPeriod: 1000 });
       client.on('connect', () => {
         document.getElementById('status').textContent = `✅ Connected as ${DRIVER_ID}`;
         client.subscribe("pubs/requests/+");
+        client.subscribe(`jobs/+/result/${DRIVER_ID}`); // 👈 KEY: Listen for job results
         client.subscribe("drivers/+/location");
         client.subscribe("drivers/+/status");
         client.subscribe("chat/group");
@@ -984,6 +1050,29 @@
       client.on('message', (topic, msg) => {
         try {
           const data = JSON.parse(msg.toString());
+
+          // 👇 JOB WON HANDLING
+          if (topic.startsWith("jobs/") && topic.endsWith(`/result/${DRIVER_ID}`)) {
+            const jobId = topic.split('/')[1];
+            if (data.result === "won") {
+              // Update job status
+              const jobIndex = driverJobs.findIndex(j => j.job === jobId);
+              if (jobIndex >= 0) driverJobs[jobIndex].status = 'allocated';
+              localStorage.setItem(`driver_jobs_${DRIVER_ID}`, JSON.stringify(driverJobs));
+
+              // Show modal + voice
+              document.getElementById('jobWonModal').style.display = 'flex';
+              speak("Congratulations! You won the job!");
+
+              // Auto-open menu to current job
+              if (!isMenuOpen) {
+                document.getElementById('menuBtn').click();
+              } else {
+                renderView('currentJob');
+              }
+            }
+          }
+
           if (topic === `drivers/${DRIVER_ID}/presets`) {
             handlePassengerPreset(data);
             return;
@@ -1009,6 +1098,7 @@
       });
     }
 
+    // ===== INIT =====
     function initApp() {
       if (!DRIVER_ID || !validateDriverId(DRIVER_ID)) {
         while (!DRIVER_ID || !validateDriverId(DRIVER_ID)) {
@@ -1058,6 +1148,9 @@
         });
       });
       document.getElementById('logOffBtn').addEventListener('click', () => setDriverPresence('offline'));
+      document.getElementById('closeJobWonModal').addEventListener('click', () => {
+        document.getElementById('jobWonModal').style.display = 'none';
+      });
 
       // ✅ FIXED GLOBAL CLICK HANDLER
       document.addEventListener('click', (e) => {
@@ -1073,6 +1166,7 @@
         }
       });
 
+      // Start
       initMapImmediately();
       if ('serviceWorker' in navigator) requestFCMToken();
     }
