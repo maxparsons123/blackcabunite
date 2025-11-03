@@ -799,56 +799,64 @@
       localStorage.setItem(`driver_jobs_${DRIVER_ID}`, JSON.stringify(driverJobs));
       if (isMenuOpen && currentView === 'jobHistory') renderJobHistory();
     }
-    function showJobPanel(job) {
-  if (jobTimerInterval) {
-    clearInterval(jobTimerInterval);
-    jobTimerInterval = null;
-  }
-  stopVoiceListener();
-  currentJob = job;
-  isJobActive = true;
-  jobPanel.style.display = 'block';
-
-  // ✅ ONLY essential info
-  pickupLocation.textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
-  customerName.textContent = job.customerName || 'Not provided';
-  customerPhone.textContent = job.customerPhone || 'Not provided';
-
-  const timerEl = document.getElementById('jobTimer');
-  const secondsEl = document.getElementById('timerSeconds');
-  timerEl.style.display = 'block';
-  secondsEl.textContent = '30';
-  let secondsLeft = 30;
-  jobTimerInterval = setInterval(() => {
-    secondsLeft--;
-    secondsEl.textContent = secondsLeft;
-    if (secondsLeft <= 0) {
-      clearInterval(jobTimerInterval);
-      jobTimerInterval = null;
-      cleanupJob();
-      processNextJob();
-    }
-  }, 1000);
-
-  // Voice prompt
-  speakFeedback(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`, () => {
-    voiceAttemptCount = 0;
-    promptForVoiceResponse();
-  });
-
-  // Request wake lock for job screen
-  async function requestJobWakeLock() {
-    if ('wakeLock' in navigator) {
-      try {
-        jobWakeLock = await navigator.wakeLock.request('screen');
-        jobWakeLock.addEventListener('release', () => { jobWakeLock = null; });
-      } catch (err) {
-        console.warn('Job Wake Lock failed:', err);
-      }
-    }
-  }
-  requestJobWakeLock();
-}
+ function showJobPanel(job) {
+        if (jobTimerInterval) {
+          clearInterval(jobTimerInterval);
+          jobTimerInterval = null;
+        }
+        stopVoiceListener();
+        currentJob = null;
+        isJobActive = true;
+        currentJob = job;
+        jobPanel.style.display = 'block';
+        pickupLocation.textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
+        customerName.textContent = job.customerName || 'Not provided';
+        customerPhone.textContent = job.customerPhone || 'Not provided';
+        const timerEl = document.getElementById('jobTimer');
+        const secondsEl = document.getElementById('timerSeconds');
+        timerEl.style.display = 'none';
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(
+            `New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`
+          );
+          utterance.lang = 'en-GB';
+          utterance.rate = 0.9;
+          utterance.onend = () => {
+            timerEl.style.display = 'block';
+            secondsEl.textContent = '30';
+            let secondsLeft = 30;
+            jobTimerInterval = setInterval(() => {
+              secondsLeft--;
+              secondsEl.textContent = secondsLeft;
+              if (secondsLeft <= 0) {
+                clearInterval(jobTimerInterval);
+                jobTimerInterval = null;
+                cleanupJob();
+                processNextJob();
+              }
+            }, 1000);
+            voiceAttemptCount = 0;
+            promptForVoiceResponse();
+          };
+          speechSynthesis.cancel();
+          speechSynthesis.speak(utterance);
+        } else {
+          timerEl.style.display = 'block';
+          secondsEl.textContent = '30';
+          let secondsLeft = 30;
+          jobTimerInterval = setInterval(() => {
+            secondsLeft--;
+            secondsEl.textContent = secondsLeft;
+            if (secondsLeft <= 0) {
+              clearInterval(jobTimerInterval);
+              jobTimerInterval = null;
+              cleanupJob();
+              processNextJob();
+            }
+          }, 1000);
+          voiceAttemptCount = 0;
+          promptForVoiceResponse();
+        }
 
     // ===== MENU SYSTEM =====
     function renderCurrentJob() {
@@ -1180,5 +1188,6 @@
   </script>
 </body>
 </html>
+
 
 
