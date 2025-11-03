@@ -1241,17 +1241,17 @@ function respondToJob(accepted) {
           }
 
           // NEW JOBS
-          if (topic.startsWith("pubs/requests/")) {
-            if (!state.seenJobIds.has(data.job) && isWithinRadius(data)) {
-              state.seenJobIds.add(data.job);
-              state.pendingJobs.push(data);
-              saveToStorage(`pending_jobs_${state.DRIVER_ID}`, state.pendingJobs);
-              addJobToHistory(data, 'queued');
-            if (state.driverPresence === 'available' && !state.isJobActive) {
-  processNextJob(); // ✅ Process the queue properly
+      if (topic.startsWith("pubs/requests/")) {
+  if (!state.seenJobIds.has(data.job) && isWithinRadius(data)) {
+    state.seenJobIds.add(data.job);
+    state.pendingJobs.push(data);
+    saveToStorage(`pending_jobs_${state.DRIVER_ID}`, state.pendingJobs);
+    addJobToHistory(data, 'queued');
+    if (state.driverPresence === 'available' && !state.isJobActive) {
+      processNextJob(); // ✅ FIXED: process queue properly
+    }
+  }
 }
-              }
-            }
           
 
           // JOB WON
@@ -1434,5 +1434,6 @@ function respondToJob(accepted) {
   </script>
 </body>
 </html>
+
 
 
