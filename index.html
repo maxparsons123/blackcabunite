@@ -812,7 +812,7 @@ function processNextJob() {
     function showJobPanel(job) {
       if (state.seenJobIds.has(job.job)) return;
       state.seenJobIds.add(job.job);
-      state.isJobActive = true;
+      state.isJobActive = false;
       state.currentJob = job;
       el.jobPanel.style.display = 'block';
       el.pickupLocation.textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
@@ -1434,4 +1434,5 @@ function respondToJob(accepted) {
   </script>
 </body>
 </html>
+
 
