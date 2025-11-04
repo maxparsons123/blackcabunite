@@ -769,7 +769,7 @@
     function showJobPanel(job) {
       // ✅ CRITICAL FIX: Use the CORRECT state.seenJobIds set
 
-      state.seenJobIds.add(job.job); // Mark as seen immediately
+  
       console.log("🆕 Showing job panel for:", job.job);
       state.isJobActive = true;
       state.currentJob = job;
@@ -1522,4 +1522,5 @@
   </script>
 </body>
 </html>
+
 
