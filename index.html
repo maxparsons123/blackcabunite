@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.4</title>
+  <title>Black Cab Unite v8.0</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -521,7 +521,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.4</div>
+      <div id="appTitle">Black Cab Unite v8.0</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -586,6 +586,9 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
+    // ========================
+    // v8-STYLE REFACTOR START
+    // ========================
     const firebaseConfig = {
       apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
       authDomain: "cabunite.firebaseapp.com",
@@ -606,7 +609,7 @@
       }
     });
 
-    // ===== CENTRALIZED STATE =====
+    // Centralized State Object
     const state = {
       DRIVER_ID: localStorage.getItem('driver_id'),
       driverPresence: localStorage.getItem('driver_presence') || 'available',
@@ -623,7 +626,7 @@
       isSpeaking: false,
       voiceAttemptCount: 0,
       maxRadius: parseFloat(localStorage.getItem('max_radius_km') || '10'),
-      seenJobIds: new Set(), // ✅ Now properly initialized
+      seenJobIds: new Set(), // ✅ Prevent duplicate jobs globally
       driverJobs: JSON.parse(localStorage.getItem(`driver_jobs_${localStorage.getItem('driver_id')}`)) || [],
       pendingJobs: JSON.parse(localStorage.getItem(`pending_jobs_${localStorage.getItem('driver_id')}`)) || [],
       chatMessages: { group: JSON.parse(localStorage.getItem(`chat_group_${localStorage.getItem('driver_id')}`)) || [] },
@@ -654,12 +657,35 @@
       }
     };
 
-    // ===== VALIDATION =====
+    // ========================
+    // Core Functions
+    // ========================
     function validateDriverId(id) {
       return id && /^[a-zA-Z0-9_-]+$/.test(id);
     }
 
-    // ===== TTS / STT =====
+    function loadState() {
+      state.DRIVER_ID = localStorage.getItem('driver_id');
+      state.driverPresence = localStorage.getItem('driver_presence') || 'available';
+      state.maxRadius = parseFloat(localStorage.getItem('max_radius_km') || '10');
+      state.driverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${state.DRIVER_ID}`)) || [];
+      state.pendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${state.DRIVER_ID}`)) || [];
+      state.chatMessages.group = JSON.parse(localStorage.getItem(`chat_group_${state.DRIVER_ID}`)) || [];
+      // ✅ Initialize seenJobIds from saved jobs
+      state.seenJobIds = new Set([...state.driverJobs.map(j => j.job), ...state.pendingJobs.map(p => p.job)]);
+    }
+
+    function saveToStorage(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    function showMicIndicator() {
+      state.els.micIndicator.style.display = 'block';
+    }
+    function hideMicIndicator() {
+      state.els.micIndicator.style.display = 'none';
+    }
+
     function speakFeedback(message, onDone = null) {
       if (!('speechSynthesis' in window)) {
         if (onDone) setTimeout(onDone, 100);
@@ -745,7 +771,9 @@
       }
     }
 
-    // ===== JOB SYSTEM =====
+    // ========================
+    // Job System
+    // ========================
     function cleanupJob() {
       if (state.jobTimerInterval) clearInterval(state.jobTimerInterval);
       state.els.jobPanel.style.display = 'none';
@@ -783,7 +811,7 @@
           cleanupJob();
         }
       }, 1000);
-      speakFeedback(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}`, () => {
+      speakFeedback(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`, () => {
         state.voiceAttemptCount = 0;
         promptForVoiceResponse();
       });
@@ -821,12 +849,14 @@
         state.driverJobs.unshift(job);
         if (state.driverJobs.length > 50) state.driverJobs = state.driverJobs.slice(0, 50);
       }
-      localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
+      saveToStorage(`driver_jobs_${state.DRIVER_ID}`, state.driverJobs);
       if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
       if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
     }
 
-    // ===== MENU SYSTEM =====
+    // ========================
+    // Menu System
+    // ========================
     function renderCurrentJob() {
       const allocated = state.driverJobs.find(j => j.status === 'allocated');
       if (!allocated) {
@@ -838,7 +868,6 @@
           <div class="job-detail"><div class="job-label">Job ID</div><div class="job-value">${allocated.job}</div></div>
           <div class="job-detail"><div class="job-label">Customer Name</div><div class="job-value">${allocated.customerName}</div></div>
           <div class="job-detail"><div class="job-label">Customer Phone</div><div class="job-value">${allocated.customerPhone}</div></div>
-          <div class="job-detail"><div class="job-label">Pickup Location</div><div class="job-value">${allocated.lat.toFixed(5)}, ${allocated.lng.toFixed(5)}</div></div>
           <div class="job-detail"><div class="job-label">Status</div><div class="job-value"><span class="job-status status-allocated">ALLOCATED</span></div></div>
         </div>
         <button class="settings-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${allocated.lat},${allocated.lng}', '_blank')">🧭 Navigate to Pickup</button>
@@ -967,7 +996,7 @@
                 // Remove from state array
                 state.driverJobs = state.driverJobs.filter(job => job.job !== jobId);
                 // Update local storage
-                localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
+                saveToStorage(`driver_jobs_${state.DRIVER_ID}`, state.driverJobs);
                 // Re-render the list to reflect the change
                 if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
               }, 300); // Match the transition duration
@@ -1103,9 +1132,13 @@
     function addMessage(chatId, sender, text, timestamp = Date.now()) {
       if (!state.chatMessages[chatId]) state.chatMessages[chatId] = [];
       state.chatMessages[chatId].push({ sender, text, timestamp });
-      if (state.chatMessages[chatId].length > 50) state.chatMessages[chatId] = state.chatMessages[chatId].slice(-50);
-      localStorage.setItem(`chat_group_${state.DRIVER_ID}`, JSON.stringify(state.chatMessages.group));
-      if (state.isMenuOpen && state.currentView === 'chat' && state.currentChat === chatId) renderChatMessages();
+      if (state.chatMessages[chatId].length > 50) {
+        state.chatMessages[chatId] = state.chatMessages[chatId].slice(-50);
+      }
+      saveToStorage(`chat_group_${state.DRIVER_ID}`, state.chatMessages.group);
+      if (state.isMenuOpen && state.currentView === 'chat' && state.currentChat === chatId) {
+        renderChatMessages();
+      }
       if (!state.isMenuOpen || state.currentView !== 'chat' || state.currentChat !== chatId) {
         state.unreadCounts[chatId] = (state.unreadCounts[chatId] || 0) + 1;
       }
@@ -1133,7 +1166,7 @@
       document.getElementById('saveDriverIdBtn').addEventListener('click', () => {
         const newId = document.getElementById('driverIdInput').value.trim();
         if (newId && validateDriverId(newId)) {
-          localStorage.setItem('driver_id', newId);
+          saveToStorage('driver_id', newId);
           state.DRIVER_ID = newId;
           if (state.client) {
             state.client.end();
@@ -1147,14 +1180,14 @@
         const radius = parseFloat(val);
         if (!isNaN(radius) && radius >= 1 && radius <= 50) {
           state.maxRadius = radius;
-          localStorage.setItem('max_radius_km', radius.toString());
+          saveToStorage('max_radius_km', radius.toString());
           state.els.status.innerHTML = `✅ Max radius set to ${radius} km`;
         }
       });
       document.getElementById('clearJobsBtn').addEventListener('click', () => {
         if (confirm("Clear all job history?")) {
           state.driverJobs = [];
-          localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, '[]');
+          saveToStorage(`driver_jobs_${state.DRIVER_ID}`, []);
           if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
           if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
           state.els.status.innerHTML = '<span class="gps-source gps-network"></span>✅ Job history cleared';
@@ -1173,7 +1206,9 @@
       else if (view === 'settings') renderSettingsView();
     }
 
-    // ===== MAP & GPS =====
+    // ========================
+    // Map & GPS
+    // ========================
     const BLACK_CAB_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 58 36" width="58" height="36"><rect x="4" y="14" width="50" height="14" rx="3" ry="3" fill="#000"/><path d="M18 14v-4c0-3 2-5 5-5h12c3 0 5 2 5 5v4h-22z" fill="#000"/><rect x="25" y="4" width="8" height="3" rx="1" fill="#FFD700" stroke="#000" stroke-width="0.5"/><text x="29" y="6.6" text-anchor="middle" font-size="2.2" font-weight="bold" fill="#000" font-family="Arial, sans-serif">TAXI</text><rect x="21" y="7" width="6" height="6" rx="1" fill="#fff"/><rect x="31" y="7" width="6" height="6" rx="1" fill="#fff"/><circle cx="15" cy="28" r="4" fill="#fff" stroke="#000" stroke-width="1"/><circle cx="43" cy="28" r="4" fill="#fff" stroke="#000" stroke-width="1"/></svg>`;
     function createBlackCabIcon(heading = 0) {
       const div = document.createElement('div');
@@ -1238,12 +1273,14 @@
       }));
     }
 
-    // ===== MQTT & FCM =====
+    // ========================
+    // MQTT & FCM
+    // ========================
     function connectMQTT() {
       state.client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", { reconnectPeriod: 1000 });
       state.client.on('connect', () => {
         state.els.status.textContent = `✅ Connected as ${state.DRIVER_ID}`;
-        state.client.subscribe("pubs/requests/+"); // ✅ Subscribe to new jobs
+        state.client.subscribe("pubs/requests/+");
         state.client.subscribe(`jobs/+/result/${state.DRIVER_ID}`);
         state.client.subscribe(`drivers/${state.DRIVER_ID}/presets`);
         state.client.subscribe("drivers/+/location");
@@ -1269,20 +1306,16 @@
             return;
           }
 
-          // ✅ NEW JOBS - FIXED: Use global seenJobIds for deduplication
+          // NEW JOBS - ✅ CRITICAL FIX: Use global seenJobIds
           if (topic.startsWith("pubs/requests/")) {
-            // ✅ CRITICAL FIX: Check global state.seenJobIds
             if (!state.seenJobIds.has(data.job)) {
-              state.seenJobIds.add(data.job); // ✅ Mark as seen
+              state.seenJobIds.add(data.job);
               state.pendingJobs.push({ ...data, receivedAt: Date.now() });
-              localStorage.setItem(`pending_jobs_${state.DRIVER_ID}`, JSON.stringify(state.pendingJobs));
+              saveToStorage(`pending_jobs_${state.DRIVER_ID}`, state.pendingJobs);
               addJobToHistory(data, 'queued');
-              // ✅ Show panel if available and no active job
               if (state.driverPresence === 'available' && !state.isJobActive) {
-                showJobPanel(data); // ✅ This should now work reliably
+                showJobPanel(data);
               }
-            } else {
-              console.log("⏭️ Duplicate job skipped:", data.job);
             }
           }
 
@@ -1391,23 +1424,24 @@
       const jobIndex = state.driverJobs.findIndex(j => j.job === jobId);
       if (jobIndex >= 0) {
         state.driverJobs[jobIndex].status = status;
-        localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
+        saveToStorage(`driver_jobs_${state.DRIVER_ID}`, state.driverJobs);
         if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
         if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
       }
     }
 
-    // ===== INITIALIZATION =====
+    // ========================
+    // Initialization
+    // ========================
     function initApp() {
       if (!state.DRIVER_ID || !validateDriverId(state.DRIVER_ID)) {
         while (!state.DRIVER_ID || !validateDriverId(state.DRIVER_ID)) {
           state.DRIVER_ID = prompt("Enter your driver ID (letters, numbers, - _):");
           if (state.DRIVER_ID === null) state.DRIVER_ID = 'driver-' + Math.random().toString(36).substr(2, 8);
         }
-        localStorage.setItem('driver_id', state.DRIVER_ID);
-        state.driverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${state.DRIVER_ID}`)) || [];
-        state.pendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${state.DRIVER_ID}`)) || [];
-        // ✅ Initialize seenJobIds from saved jobs
+        saveToStorage('driver_id', state.DRIVER_ID);
+        state.driverJobs = JSON.parse(saveToStorage(`driver_jobs_${state.DRIVER_ID}`)) || [];
+        state.pendingJobs = JSON.parse(saveToStorage(`pending_jobs_${state.DRIVER_ID}`)) || [];
         state.seenJobIds = new Set([...state.driverJobs.map(j => j.job), ...state.pendingJobs.map(p => p.job)]);
       }
 
@@ -1444,7 +1478,7 @@
       document.querySelectorAll('.status-option').forEach(opt => {
         opt.addEventListener('click', () => {
           state.driverPresence = opt.dataset.status;
-          localStorage.setItem('driver_presence', state.driverPresence);
+          saveToStorage('driver_presence', state.driverPresence);
           document.getElementById('statusCaption').className = `status-${state.driverPresence}`;
           document.getElementById('statusCaption').innerHTML = `<span class="status-dot"></span> ${state.driverPresence.charAt(0).toUpperCase() + state.driverPresence.slice(1)}`;
           state.els.statusDropdown.style.display = 'none';
@@ -1459,7 +1493,7 @@
       });
       document.getElementById('logOffBtn').addEventListener('click', () => {
         state.driverPresence = 'offline';
-        localStorage.setItem('driver_presence', 'offline');
+        saveToStorage('driver_presence', 'offline');
         document.getElementById('statusCaption').className = 'status-offline';
         document.getElementById('statusCaption').innerHTML = '<span class="status-dot"></span> Offline';
         state.els.statusDropdown.style.display = 'none';
