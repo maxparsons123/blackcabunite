@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.2</title>
+  <title>Black Cab Unite v8-Clean</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -369,19 +369,6 @@
     .status-completed { background: #e2e3e5; color: #41464b; }
     .status-lost, .status-rejected, .status-expired { background: #f8d7da; color: #842029; }
     .status-queued { background: #fff3cd; color: #856404; }
-    /* --- CUSTOM CHAT STYLES (Added) --- */
-    /* Chat View */
-    #chatView {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
-    #chatHeader {
-      background: #000;
-      color: #FFD700;
-      padding: 12px 16px;
-      font-weight: bold;
-    }
     #chatMessages {
       flex: 1;
       padding: 16px;
@@ -392,106 +379,43 @@
     }
     .message {
       max-width: 85%;
-      padding: 12px 16px;
-      border-radius: 16px;
+      padding: 14px 16px;
+      border-radius: 20px;
+      font-size: 15px;
+      line-height: 1.5;
       word-wrap: break-word;
     }
-    .message.sent {
-      align-self: flex-end;
-      background: #000;
-      color: #FFD700;
-      border-bottom-right-radius: 4px;
-    }
-    .message.received {
-      align-self: flex-start;
-      background: #f1f3f5;
-      color: #000;
-      border-bottom-left-radius: 4px;
-    }
-    .message-sender {
-      font-size: 11px;
-      font-weight: bold;
-      margin-bottom: 4px;
-      opacity: 0.8;
-    }
-    .message-time {
-      font-size: 11px;
-      opacity: 0.7;
-      margin-top: 4px;
-    }
-    #chatInput {
+    .received { background: #e9ecef; align-self: flex-start; border-bottom-left-radius: 6px; }
+    .sent { background: #000; color: white; align-self: flex-end; border-bottom-right-radius: 6px; }
+    #chatInputContainer {
       display: flex;
       padding: 12px;
       background: white;
       border-top: 1px solid #eee;
-      gap: 8px;
     }
-    #chatInput input {
+    #chatInput {
       flex: 1;
-      padding: 12px 16px;
+      padding: 14px;
       border: 2px solid #ddd;
       border-radius: 24px;
       font-size: 16px;
       outline: none;
     }
-    #chatInput input:focus {
-      border-color: #FFD700;
-    }
     #sendBtn {
       background: #000;
       color: #FFD700;
       border: none;
-      width: 48px;
-      height: 48px;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
+      margin-left: 12px;
       cursor: pointer;
-      font-weight: bold;
-    }
-    /* --- END CUSTOM CHAT STYLES --- */
-
-    #chatList {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px;
-    }
-    .contact-item {
-      padding: 16px;
-      border-bottom: 1px solid #eee;
       display: flex;
       align-items: center;
-      gap: 16px;
-      cursor: pointer;
-      border-radius: 8px;
-      transition: background 0.2s;
-    }
-    .contact-item:hover {
-      background: #f8f9fa;
-    }
-    .contact-name {
-      font-weight: 700;
-      font-size: 16px;
-      margin-bottom: 4px;
-    }
-    .contact-status {
-      font-size: 13px;
-      color: #6c757d;
-    }
-    .contact-badge {
-      background: #28a745;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      margin-left: auto;
-    }
-    .offline { background: #6c757d; }
-    .unread-badge {
-      background: #FFD700;
-      color: #000;
-      border-radius: 12px;
-      padding: 4px 8px;
-      font-size: 12px;
-      margin-left: 8px;
-      font-weight: 700;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
     .settings-group {
       margin-bottom: 24px;
@@ -531,14 +455,6 @@
       background: #1958c4;
       box-shadow: 0 6px 16px rgba(31, 111, 235, 0.4);
     }
-    .settings-info {
-      background: #f8f9fa;
-      padding: 16px;
-      border-radius: 12px;
-      font-size: 14px;
-      color: #666;
-      line-height: 1.5;
-    }
     /* Job Won Modal - Simple */
     #jobWonModal {
       display: none;
@@ -569,7 +485,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.2</div>
+      <div id="appTitle">Black Cab Unite v8-Clean</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -634,764 +550,587 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
-    // ===== FIREBASE INIT =====
- const firebaseConfig = {
-    apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
-    authDomain: "cabunite.firebaseapp.com",
-    projectId: "cabunite",
-    storageBucket: "cabunite.firebasestorage.app",
-    messagingSenderId: "997924656033",
-    appId: "1:997924656033:web:1552b9f26a1af0878eb1e0"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const messaging = firebase.messaging();
-
-  messaging.onMessage((payload) => {
-    if (Notification.permission === 'granted') {
-      new Notification(payload.notification?.title || "Taxi Update", {
-        body: payload.notification?.body || "You have a new message",
-        icon: '/blackcabunite/icon-192.png'
-      });
-    }
-  });
-
-  // ===== CENTRALIZED STATE =====
-  const state = {
-    DRIVER_ID: localStorage.getItem('driver_id'),
-    driverPresence: localStorage.getItem('driver_presence') || 'available',
-    driverCoords: null,
-    map: null,
-    driverMarker: null,
-    client: null,
-    isMenuOpen: false,
-    currentView: 'currentJob',
-    isJobActive: false,
-    currentJob: null,
-    jobTimerInterval: null,
-    speechRecognition: null,
-    isSpeaking: false,
-    voiceAttemptCount: 0,
-    maxRadius: parseFloat(localStorage.getItem('max_radius_km') || '10'),
-    seenJobIds: new Set(),
-    driverJobs: JSON.parse(localStorage.getItem(`driver_jobs_${localStorage.getItem('driver_id')}`)) || [],
-    pendingJobs: JSON.parse(localStorage.getItem(`pending_jobs_${localStorage.getItem('driver_id')}`)) || [],
-    chatMessages: { group: JSON.parse(localStorage.getItem(`chat_group_${localStorage.getItem('driver_id')}`)) || [] },
-    unreadCounts: { group: 0 },
-    otherDrivers: {},
-    driverStatus: {},
-    fcmToken: null,
-    gpsWatchId: null,
-    wakeLock: null,
-    jobWakeLock: null,
-    currentChat: 'group',
-    els: {
-      status: document.getElementById('status'),
-      jobPanel: document.getElementById('jobPanel'),
-      pickupLocation: document.getElementById('pickupLocation'),
-      customerName: document.getElementById('customerName'),
-      customerPhone: document.getElementById('customerPhone'),
-      jobTimer: document.getElementById('jobTimer'),
-      timerSeconds: document.getElementById('timerSeconds'),
-      micIndicator: document.getElementById('micIndicator'),
-      menuPanel: document.getElementById('menuPanel'),
-      menuContent: document.getElementById('menuContent'),
-      menuBtn: document.getElementById('menuBtn'),
-      acceptBtn: document.getElementById('acceptBtn'),
-      rejectBtn: document.getElementById('rejectBtn'),
-      statusDropdown: document.getElementById('statusDropdown'),
-      jobWonModal: document.getElementById('jobWonModal')
-    }
-  };
-
-  // ===== VALIDATION =====
-  function validateDriverId(id) {
-    return id && /^[a-zA-Z0-9_-]+$/.test(id);
-  }
-
-  // ===== TTS / STT =====
-  function speak(text, onEnd = null) {
-    if (!('speechSynthesis' in window)) {
-      if (onEnd) setTimeout(onEnd, 100);
-      return;
-    }
-    state.isSpeaking = true;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-GB';
-    u.rate = 0.9;
-    u.onend = () => {
-      state.isSpeaking = false;
-      if (onEnd) setTimeout(onEnd, 600);
+    // ========================
+    // v8-STYLE REFACTOR START
+    // ========================
+    const firebaseConfig = {
+      apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
+      authDomain: "cabunite.firebaseapp.com",
+      projectId: "cabunite",
+      storageBucket: "cabunite.firebasestorage.app",
+      messagingSenderId: "997924656033",
+      appId: "1:997924656033:web:1552b9f26a1af0878eb1e0"
     };
-    speechSynthesis.speak(u);
-  }
+    firebase.initializeApp(firebaseConfig);
+    const messaging = firebase.messaging();
 
-  function startVoiceListener() {
-    if (state.isSpeaking || state.speechRecognition) return;
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-    state.speechRecognition = new SpeechRecognition();
-    state.speechRecognition.lang = 'en-US';
-    state.speechRecognition.continuous = false;
-    state.speechRecognition.interimResults = false;
-    state.speechRecognition.onresult = (e) => {
-      const t = e.results[0][0].transcript.toLowerCase();
-      if (/\baccept\b/.test(t) && !/\breject\b/.test(t)) {
-        state.voiceAttemptCount = 0;
-        respondToJob(true);
-        speak("Job accepted. Thank you.");
-      } else if (/\breject\b/.test(t)) {
-        state.voiceAttemptCount = 0;
-        respondToJob(false);
-        speak("Job rejected. Understood.");
-      } else {
-        state.voiceAttemptCount++;
-        stopVoiceListener();
-        promptForVoiceResponse();
+    messaging.onMessage((payload) => {
+      if (Notification.permission === 'granted') {
+        new Notification(payload.notification?.title || "Taxi Update", {
+          body: payload.notification?.body || "You have a new message",
+          icon: '/blackcabunite/icon-192.png'
+        });
       }
-      state.speechRecognition = null;
-    };
-    state.speechRecognition.onerror = () => { state.speechRecognition = null; };
-    state.speechRecognition.onend = () => { state.speechRecognition = null; hideMicIndicator(); };
-    try { state.speechRecognition.start(); } catch (e) {}
-  }
-
-  function stopVoiceListener() {
-    hideMicIndicator();
-    if (state.speechRecognition) {
-      state.speechRecognition.abort();
-      state.speechRecognition = null;
-    }
-  }
-
-  // ✅ FIXED: Immediate mic on first attempt
-  function promptForVoiceResponse() {
-    if (state.isSpeaking || !state.isJobActive) return;
-    if (state.voiceAttemptCount === 0) {
-      showMicIndicator();
-      setTimeout(startVoiceListener, 300); // Small buffer for UI update
-    } else if (state.voiceAttemptCount < 3) {
-      speak("Did not hear you. Please say ‘accept’ or ‘reject’.", () => {
-        showMicIndicator();
-        startVoiceListener();
-      });
-    } else {
-      speak("Let me repeat the job.", () => {
-        const job = currentJob;
-        if (job) {
-          const utterance = new SpeechSynthesisUtterance(
-            `Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`
-          );
-          utterance.onend = () => {
-            state.voiceAttemptCount = 0;
-            showMicIndicator();
-            setTimeout(promptForVoiceResponse, 300);
-          };
-          speechSynthesis.speak(utterance);
-        }
-      });
-    }
-  }
-
-  // ===== JOB SYSTEM =====
-  function cleanupJob() {
-    if (state.jobTimerInterval) clearInterval(state.jobTimerInterval);
-    state.els.jobPanel.style.display = 'none';
-    stopVoiceListener();
-    speechSynthesis.cancel();
-    state.currentJob = null;
-    state.isJobActive = false;
-    if (state.jobWakeLock) {
-      state.jobWakeLock.release();
-      state.jobWakeLock = null;
-    }
-  }
-
-  function showJobPanel(job) {
-    if (state.seenJobIds.has(job.job)) return;
-    state.seenJobIds.add(job.job);
-    state.isJobActive = true;
-    state.currentJob = job;
-    state.els.jobPanel.style.display = 'block';
-    state.els.pickupLocation.textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
-    state.els.customerName.textContent = job.customerName || 'Not provided';
-    state.els.customerPhone.textContent = job.customerPhone || 'Not provided';
-    state.els.jobTimer.style.display = 'block';
-    state.els.timerSeconds.textContent = '30';
-    let secondsLeft = 30;
-    state.jobTimerInterval = setInterval(() => {
-      secondsLeft--;
-      state.els.timerSeconds.textContent = secondsLeft;
-      if (secondsLeft <= 0) {
-        clearInterval(state.jobTimerInterval);
-        cleanupJob();
-      }
-    }, 1000);
-    speak(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}`, () => {
-      state.voiceAttemptCount = 0;
-      promptForVoiceResponse();
     });
-    async function requestJobWakeLock() {
-      if ('wakeLock' in navigator) {
-        try {
-          state.jobWakeLock = await navigator.wakeLock.request('screen');
-          state.jobWakeLock.addEventListener('release', () => { state.jobWakeLock = null; });
-        } catch (err) {
-          console.warn('Job Wake Lock failed:', err);
-        }
+
+    // Centralized State Object
+    const state = {
+      DRIVER_ID: null,
+      driverPresence: 'available',
+      driverCoords: null,
+      map: null,
+      driverMarker: null,
+      client: null,
+      isMenuOpen: false,
+      currentView: 'currentJob',
+      isJobActive: false,
+      currentJob: null,
+      jobTimerInterval: null,
+      speechRecognition: null,
+      isSpeaking: false,
+      voiceAttemptCount: 0,
+      maxRadius: 10,
+      seenJobIds: new Set(),
+      driverJobs: [],
+      pendingJobs: [],
+      chatMessages: { group: [] },
+      gpsWatchId: null,
+      fcmToken: null,
+      // UI Elements
+      els: {
+        status: document.getElementById('status'),
+        jobPanel: document.getElementById('jobPanel'),
+        pickupLocation: document.getElementById('pickupLocation'),
+        customerName: document.getElementById('customerName'),
+        customerPhone: document.getElementById('customerPhone'),
+        jobTimer: document.getElementById('jobTimer'),
+        timerSeconds: document.getElementById('timerSeconds'),
+        micIndicator: document.getElementById('micIndicator'),
+        menuPanel: document.getElementById('menuPanel'),
+        menuContent: document.getElementById('menuContent'),
+        menuBtn: document.getElementById('menuBtn'),
+        acceptBtn: document.getElementById('acceptBtn'),
+        rejectBtn: document.getElementById('rejectBtn'),
+        statusDropdown: document.getElementById('statusDropdown'),
+        jobWonModal: document.getElementById('jobWonModal')
+      }
+    };
+
+    // ========================
+    // Core Functions
+    // ========================
+    function validateDriverId(id) {
+      return id && /^[a-zA-Z0-9_-]+$/.test(id);
+    }
+
+    function loadState() {
+      state.DRIVER_ID = localStorage.getItem('driver_id');
+      state.driverPresence = localStorage.getItem('driver_presence') || 'available';
+      state.maxRadius = parseFloat(localStorage.getItem('max_radius_km') || '10');
+      state.driverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${state.DRIVER_ID}`) || '[]');
+      state.pendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${state.DRIVER_ID}`) || '[]');
+      state.chatMessages.group = JSON.parse(localStorage.getItem(`chat_group_${state.DRIVER_ID}`) || '[]');
+      state.seenJobIds = new Set([...state.driverJobs.map(j => j.job), ...state.pendingJobs.map(p => p.job)]);
+    }
+
+    function saveToStorage(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    function showMicIndicator() {
+      state.els.micIndicator.style.display = 'block';
+    }
+    function hideMicIndicator() {
+      state.els.micIndicator.style.display = 'none';
+    }
+
+    function speak(text, onDone = null) {
+      if (!('speechSynthesis' in window)) {
+        if (onDone) setTimeout(onDone, 100);
+        return;
+      }
+      state.isSpeaking = true;
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-GB';
+      u.rate = 0.9;
+      u.onend = () => {
+        state.isSpeaking = false;
+        if (onDone) setTimeout(onDone, 600);
+      };
+      speechSynthesis.speak(u);
+    }
+
+    // Fixed: Immediate mic on first attempt
+    function promptForVoiceResponse() {
+      if (state.isSpeaking || !state.isJobActive) return;
+      if (state.voiceAttemptCount === 0) {
+        showMicIndicator();
+        setTimeout(startVoiceListener, 300);
+      } else if (state.voiceAttemptCount < 3) {
+        speak("Did not hear you. Please say ‘accept’ or ‘reject’.", () => {
+          showMicIndicator();
+          startVoiceListener();
+        });
+      } else {
+        speak("Let me repeat the job.", () => {
+          if (state.currentJob) {
+            const job = state.currentJob;
+            const utterance = new SpeechSynthesisUtterance(
+              `Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}. Phone: ${job.customerPhone || 'not provided'}`
+            );
+            utterance.onend = () => {
+              state.voiceAttemptCount = 0;
+              showMicIndicator();
+              setTimeout(startVoiceListener, 300);
+            };
+            speechSynthesis.speak(utterance);
+          }
+        });
       }
     }
-    requestJobWakeLock();
-  }
 
-  function respondToJob(accepted) {
-    if (!state.currentJob || !state.client) return;
-    state.client.publish(`jobs/${state.currentJob.job}/status`, JSON.stringify({
-      job: state.currentJob.job,
-      driver: state.DRIVER_ID,
-      status: accepted ? "bidding" : "rejected",
-      lat: state.driverCoords?.lat || state.currentJob.lat,
-      lng: state.driverCoords?.lng || state.currentJob.lng,
-      ts: Date.now()
-    }));
-    cleanupJob();
-    addJobToHistory(state.currentJob, accepted ? "bidding" : "rejected");
-  }
+    function startVoiceListener() {
+      if (state.isSpeaking || state.speechRecognition) return;
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) return;
+      state.speechRecognition = new SpeechRecognition();
+      state.speechRecognition.lang = 'en-US';
+      state.speechRecognition.continuous = false;
+      state.speechRecognition.interimResults = false;
+      state.speechRecognition.onresult = (e) => {
+        const t = e.results[0][0].transcript.toLowerCase();
+        if (/\baccept\b/.test(t) && !/\breject\b/.test(t)) {
+          state.voiceAttemptCount = 0;
+          respondToJob(true);
+          speak("Job accepted. Thank you.");
+        } else if (/\breject\b/.test(t)) {
+          state.voiceAttemptCount = 0;
+          respondToJob(false);
+          speak("Job rejected. Understood.");
+        } else {
+          state.voiceAttemptCount++;
+          stopVoiceListener();
+          promptForVoiceResponse();
+        }
+        state.speechRecognition = null;
+      };
+      state.speechRecognition.onerror = () => { state.speechRecognition = null; };
+      state.speechRecognition.onend = () => { state.speechRecognition = null; hideMicIndicator(); };
+      try { state.speechRecognition.start(); } catch (e) {}
+    }
 
-  function addJobToHistory(jobData, initialStatus = 'queued') {
-    if (!jobData) return;
-    const job = { ...jobData, status: initialStatus, timestamp: Date.now(), driver: state.DRIVER_ID };
-    const existingIndex = state.driverJobs.findIndex(j => j.job === job.job);
-    if (existingIndex >= 0) {
-      state.driverJobs[existingIndex] = job;
-    } else {
+    function stopVoiceListener() {
+      hideMicIndicator();
+      if (state.speechRecognition) {
+        state.speechRecognition.abort();
+        state.speechRecognition = null;
+      }
+    }
+
+    // ========================
+    // Job System
+    // ========================
+    function cleanupJob() {
+      if (state.jobTimerInterval) clearInterval(state.jobTimerInterval);
+      state.els.jobPanel.style.display = 'none';
+      stopVoiceListener();
+      speechSynthesis.cancel();
+      state.isJobActive = false;
+      state.currentJob = null;
+    }
+
+    function showJobPanel(job) {
+      if (state.seenJobIds.has(job.job)) return;
+      state.seenJobIds.add(job.job);
+      state.isJobActive = true;
+      state.currentJob = job;
+      state.els.jobPanel.style.display = 'block';
+      state.els.pickupLocation.textContent = `${job.pubName} (${job.lat.toFixed(5)}, ${job.lng.toFixed(5)})`;
+      state.els.customerName.textContent = job.customerName || 'Not provided';
+      state.els.customerPhone.textContent = job.customerPhone || 'Not provided';
+      state.els.jobTimer.style.display = 'block';
+      state.els.timerSeconds.textContent = '30';
+      state.jobTimerInterval = setInterval(() => {
+        const sec = parseInt(state.els.timerSeconds.textContent) - 1;
+        state.els.timerSeconds.textContent = sec;
+        if (sec <= 0) {
+          clearInterval(state.jobTimerInterval);
+          cleanupJob();
+        }
+      }, 1000);
+      speak(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}`, () => {
+        state.voiceAttemptCount = 0;
+        promptForVoiceResponse();
+      });
+    }
+
+    function respondToJob(accepted) {
+      if (!state.currentJob || !state.client) return;
+      state.client.publish(`jobs/${state.currentJob.job}/status`, JSON.stringify({
+        job: state.currentJob.job,
+        driver: state.DRIVER_ID,
+        status: accepted ? "bidding" : "rejected",
+        lat: state.driverCoords?.lat || state.currentJob.lat,
+        lng: state.driverCoords?.lng || state.currentJob.lng,
+        ts: Date.now()
+      }));
+      cleanupJob();
+      addJobToHistory(state.currentJob, accepted ? "bidding" : "rejected");
+    }
+
+    function addJobToHistory(jobData, initialStatus = 'queued') {
+      const job = { ...jobData, status: initialStatus, timestamp: Date.now(), driver: state.DRIVER_ID };
       state.driverJobs.unshift(job);
       if (state.driverJobs.length > 50) state.driverJobs = state.driverJobs.slice(0, 50);
+      saveToStorage(`driver_jobs_${state.DRIVER_ID}`, state.driverJobs);
+      if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
     }
-    localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
-    if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
-    if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
-  }
 
-  // ===== MENU SYSTEM =====
-  function renderCurrentJob() {
-    const allocated = state.driverJobs.find(j => j.status === 'allocated');
-    if (!allocated) {
+    // ========================
+    // Menu System
+    // ========================
+    function renderCurrentJob() {
+      const allocated = state.driverJobs.find(j => j.status === 'allocated');
+      if (!allocated) {
+        state.els.menuContent.innerHTML = '<div class="no-current-job"><div class="icon">🚕</div><div>No active job</div></div>';
+        return;
+      }
       state.els.menuContent.innerHTML = `
-        <div class="no-current-job">
-          <div class="icon">🚕</div>
-          <div>No active jobs</div>
+        <div class="current-job-info">
+          <div class="job-detail"><div class="job-label">Job ID</div><div class="job-value">${allocated.job}</div></div>
+          <div class="job-detail"><div class="job-label">Customer</div><div class="job-value">${allocated.customerName}</div></div>
+          <div class="job-detail"><div class="job-label">Phone</div><div class="job-value">${allocated.customerPhone}</div></div>
+          <div class="job-detail"><div class="job-label">Status</div><div class="job-value"><span class="job-status status-allocated">ALLOCATED</span></div></div>
         </div>
+        <button class="settings-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${allocated.lat},${allocated.lng}', '_blank')">🧭 Navigate to Pickup</button>
+        <button class="settings-btn" style="background:#28a745;" onclick="window.location.href='tel:${allocated.customerPhone.replace(/\\D/g,'')}'">📞 Call Customer</button>
       `;
-      return;
     }
-    state.els.menuContent.innerHTML = `
-      <div class="current-job-info">
-        <div class="job-detail">
-          <div class="job-label">Job ID</div>
-          <div class="job-value">${allocated.job}</div>
-        </div>
-        <div class="job-detail">
-          <div class="job-label">Customer</div>
-          <div class="job-value">${allocated.customerName}</div>
-        </div>
-        <div class="job-detail">
-          <div class="job-label">Phone</div>
-          <div class="job-value">${allocated.customerPhone}</div>
-        </div>
-        <div class="job-detail">
-          <div class="job-label">Status</div>
-          <div class="job-value">
-            <span class="job-status status-allocated">ALLOCATED</span>
+
+    function renderJobHistory() {
+      state.els.menuContent.innerHTML = state.driverJobs.length === 0 ?
+        '<div style="text-align:center;padding:50px;color:#666;">No jobs in history</div>' :
+        state.driverJobs.map(job => `
+          <div class="job-item ${job.status}">
+            <div class="job-id">${job.job}</div>
+            <div class="job-pub">Pub: ${job.pubName}</div>
+            <div class="job-phone">👤 ${job.customerName || '—'}</div>
+            <div class="job-phone">📞 ${job.customerPhone}</div>
+            <div class="job-status status-${job.status}">${job.status}</div>
           </div>
-        </div>
-      </div>
-      <button class="settings-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${allocated.lat},${allocated.lng}', '_blank')">🧭 Navigate to Pickup</button>
-      <button class="settings-btn" style="background:#28a745;" onclick="window.location.href='tel:${allocated.customerPhone.replace(/\D/g,'')}'">📞 Call Customer</button>
-    `;
-  }
-
-  function renderJobHistory() {
-    state.els.menuContent.innerHTML = '';
-    if (state.driverJobs.length === 0) {
-      state.els.menuContent.innerHTML = '<div style="text-align:center; padding:50px; color:#666;">No jobs in history</div>';
-      return;
+        `).join('');
     }
-    const jobsContainer = document.createElement('div');
-    jobsContainer.id = 'jobHistoryContent';
-    state.driverJobs.forEach(job => {
-      const jobEl = document.createElement('div');
-      jobEl.className = `job-item ${job.status}`;
-      jobEl.dataset.jobId = job.job;
-      const date = new Date(job.timestamp);
-      const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
-      const dateStr = date.toLocaleDateString();
 
-      jobEl.innerHTML = `
-        <div class="job-id">${job.job}</div>
-        <div class="job-pub">Pub: ${job.pubName}</div>
-        <div class="job-phone">👤 ${job.customerName || '—'}</div>
-        <div class="job-phone">📞 ${job.customerPhone}</div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-          <span class="job-status status-${job.status}">${job.status.toUpperCase()}</span>
-          <span style="font-size:12px; color:#666;">${dateStr} ${timeStr}</span>
+    function renderChatView() {
+      state.els.menuContent.innerHTML = '<div style="padding:20px;">Chat not implemented in this build</div>';
+    }
+
+    function renderSettingsView() {
+      state.els.menuContent.innerHTML = `
+        <div class="settings-group">
+          <div class="settings-label">Driver ID</div>
+          <input type="text" id="driverIdInput" class="settings-input" value="${state.DRIVER_ID}">
+          <button class="settings-btn" id="saveDriverIdBtn">Save Driver ID</button>
+        </div>
+        <div class="settings-group">
+          <div class="settings-label">Max Job Radius (km)</div>
+          <input type="number" id="maxRadiusInput" class="settings-input" value="${state.maxRadius}" min="1" max="50" step="1">
+          <button class="settings-btn" id="saveRadiusBtn">Save Radius</button>
+        </div>
+        <div class="settings-group">
+          <button class="settings-btn" id="clearJobsBtn" style="background:#dc3545;">Clear Job History</button>
         </div>
       `;
-      jobsContainer.appendChild(jobEl);
-    });
-    state.els.menuContent.appendChild(jobsContainer);
-  }
-
-  // ===== CHAT SYSTEM (NEW - Using Custom HTML) =====
-  function renderChatView() {
-    state.els.menuContent.innerHTML = `
-      <div id="chatView">
-        <div id="chatHeader">Driver Group Chat</div>
-        <div id="chatMessages"></div>
-        <div id="chatInput">
-          <input type="text" id="messageInput" placeholder="Type a message..." />
-          <button id="sendBtn">➤</button>
-        </div>
-      </div>
-    `;
-
-    // Load and display chat history
-    const messagesContainer = document.getElementById('chatMessages');
-    const savedMessages = state.chatMessages.group;
-    savedMessages.forEach(msg => {
-      const messageEl = document.createElement('div');
-      messageEl.className = `message ${msg.sender === state.DRIVER_ID ? 'sent' : 'received'}`;
-
-      const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      messageEl.innerHTML = `
-        ${msg.sender !== state.DRIVER_ID ? `<div class="message-sender">${msg.sender}</div>` : ''}
-        <div>${msg.text}</div>
-        <div class="message-time">${time}</div>
-      `;
-      messagesContainer.appendChild(messageEl);
-    });
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-    // Event listeners for sending messages
-    document.getElementById('sendBtn').addEventListener('click', sendChatMessage);
-    document.getElementById('messageInput').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') sendChatMessage();
-    });
-  }
-
-  function sendChatMessage() {
-    const input = document.getElementById('messageInput');
-    const text = input?.value.trim();
-    if (!text || !state.client) return;
-
-    const payload = {
-      sender: state.DRIVER_ID,
-      text: text,
-      timestamp: Date.now()
-    };
-
-    state.client.publish('chat/group', JSON.stringify(payload));
-
-    // Add to UI immediately as 'sent'
-    addMessageToChatUI(state.DRIVER_ID, text, Date.now(), true);
-
-    // Add to state and save
-    if (!state.chatMessages.group) state.chatMessages.group = [];
-    state.chatMessages.group.push({ sender: state.DRIVER_ID, text, timestamp: Date.now(), isSent: true });
-    if (state.chatMessages.group.length > 50) state.chatMessages.group = state.chatMessages.group.slice(-50);
-    localStorage.setItem(`chat_group_${state.DRIVER_ID}`, JSON.stringify(state.chatMessages.group));
-
-    input.value = '';
-  }
-
-  function addMessageToChatUI(sender, text, timestamp, isSent) {
-    const messagesContainer = document.getElementById('chatMessages');
-    if (!messagesContainer) return; // If chat view is not active
-
-    const messageEl = document.createElement('div');
-    messageEl.className = `message ${isSent ? 'sent' : 'received'}`;
-
-    const timeStr = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    messageEl.innerHTML = `
-      ${!isSent ? `<div class="message-sender">${sender}</div>` : ''}
-      <div>${text}</div>
-      <div class="message-time">${timeStr}</div>
-    `;
-
-    messagesContainer.appendChild(messageEl);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight; // Auto-scroll
-  }
-
-  function addMessage(chatId, sender, text, timestamp = Date.now()) {
-    if (!state.chatMessages[chatId]) state.chatMessages[chatId] = [];
-    state.chatMessages[chatId].push({ sender, text, timestamp });
-    if (state.chatMessages[chatId].length > 50) {
-      state.chatMessages[chatId] = state.chatMessages[chatId].slice(-50);
-    }
-    localStorage.setItem(`chat_group_${state.DRIVER_ID}`, JSON.stringify(state.chatMessages.group));
-
-    // Update UI if currently viewing this chat
-    if (state.isMenuOpen && state.currentView === 'chat' && state.currentChat === chatId) {
-      addMessageToChatUI(sender, text, timestamp, sender === state.DRIVER_ID);
+      document.getElementById('saveDriverIdBtn').addEventListener('click', () => {
+        const newId = document.getElementById('driverIdInput').value.trim();
+        if (newId && validateDriverId(newId)) {
+          localStorage.setItem('driver_id', newId);
+          state.DRIVER_ID = newId;
+          alert("Driver ID updated. Reload to apply fully.");
+        }
+      });
+      document.getElementById('saveRadiusBtn').addEventListener('click', () => {
+        const val = document.getElementById('maxRadiusInput').value;
+        const radius = parseFloat(val);
+        if (!isNaN(radius) && radius >= 1 && radius <= 50) {
+          state.maxRadius = radius;
+          localStorage.setItem('max_radius_km', radius.toString());
+          state.els.status.innerHTML = `✅ Max radius set to ${radius} km`;
+        } else {
+          alert("Please enter a value between 1 and 50");
+        }
+      });
+      document.getElementById('clearJobsBtn').addEventListener('click', () => {
+        if (confirm("Clear all job history?")) {
+          state.driverJobs = [];
+          saveToStorage(`driver_jobs_${state.DRIVER_ID}`, []);
+          renderJobHistory();
+        }
+      });
     }
 
-    // Update unread counts if not viewing
-    if (!state.isMenuOpen || state.currentView !== 'chat' || state.currentChat !== chatId) {
-      state.unreadCounts[chatId] = (state.unreadCounts[chatId] || 0) + 1;
-      // Update chat list UI here if needed
+    function renderView(view) {
+      state.currentView = view;
+      document.querySelectorAll('.menu-nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+      });
+      if (view === 'currentJob') renderCurrentJob();
+      else if (view === 'jobHistory') renderJobHistory();
+      else if (view === 'chat') renderChatView();
+      else if (view === 'settings') renderSettingsView();
     }
-  }
 
-  function renderSettingsView() {
-    state.els.menuContent.innerHTML = `
-      <div class="settings-group">
-        <div class="settings-label">Driver ID</div>
-        <input type="text" id="driverIdInput" class="settings-input" value="${state.DRIVER_ID}">
-        <button class="settings-btn" id="saveDriverIdBtn">Save Driver ID</button>
-      </div>
-      <div class="settings-group">
-        <div class="settings-label">Max Job Radius (km)</div>
-        <input type="number" id="maxRadiusInput" class="settings-input" value="${state.maxRadius}" min="1" max="50" step="1">
-        <button class="settings-btn" id="saveRadiusBtn">Save Radius</button>
-      </div>
-      <div class="settings-group">
-        <button class="settings-btn" id="clearJobsBtn" style="background:#dc3545;">Clear Job History</button>
-      </div>
-    `;
+    // ========================
+    // Map & GPS
+    // ========================
+    const BLACK_CAB_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 58 36" width="58" height="36"><rect x="4" y="14" width="50" height="14" rx="3" ry="3" fill="#000"/><path d="M18 14v-4c0-3 2-5 5-5h12c3 0 5 2 5 5v4h-22z" fill="#000"/><rect x="25" y="4" width="8" height="3" rx="1" fill="#FFD700" stroke="#000" stroke-width="0.5"/><text x="29" y="6.6" text-anchor="middle" font-size="2.2" font-weight="bold" fill="#000" font-family="Arial, sans-serif">TAXI</text><rect x="21" y="7" width="6" height="6" rx="1" fill="#fff"/><rect x="31" y="7" width="6" height="6" rx="1" fill="#fff"/><circle cx="15" cy="28" r="4" fill="#fff" stroke="#000" stroke-width="1"/><circle cx="43" cy="28" r="4" fill="#fff" stroke="#000" stroke-width="1"/></svg>`;
+    function createBlackCabIcon(heading = 0) {
+      const div = document.createElement('div');
+      div.innerHTML = BLACK_CAB_SVG;
+      const svg = div.firstElementChild;
+      svg.style.transform = `rotate(${heading}deg)`;
+      return L.divIcon({ html: svg.outerHTML, iconSize: [58, 36], iconAnchor: [29, 18], className: 'taxi-marker' });
+    }
 
-    document.getElementById('saveDriverIdBtn').addEventListener('click', () => {
-      const newId = document.getElementById('driverIdInput').value.trim();
-      if (newId && validateDriverId(newId)) {
-        localStorage.setItem('driver_id', newId);
-        state.DRIVER_ID = newId;
-        state.els.status.innerHTML = `✅ Driver ID updated to: ${newId}`;
+    function initMapImmediately() {
+      document.getElementById('loadingOverlay').style.display = 'none';
+      state.map = L.map('map').setView([52.4068, -1.5197], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
+      state.driverMarker = L.marker([52.4068, -1.5197], {
+        icon: createBlackCabIcon(0)
+      }).addTo(state.map);
+      initGPS();
+    }
+
+    function initGPS() {
+      if (!('geolocation' in navigator)) {
+        state.els.status.innerHTML = '<span class="gps-source gps-poor"></span>Geolocation not supported.';
+        connectMQTT();
+        return;
       }
-    });
-
-    document.getElementById('saveRadiusBtn').addEventListener('click', () => {
-      const val = document.getElementById('maxRadiusInput').value;
-      const radius = parseFloat(val);
-      if (!isNaN(radius) && radius >= 1 && radius <= 50) {
-        state.maxRadius = radius;
-        localStorage.setItem('max_radius_km', radius.toString());
-        state.els.status.innerHTML = `✅ Max radius set to ${radius} km`;
-      }
-    });
-
-    document.getElementById('clearJobsBtn').addEventListener('click', () => {
-      if (confirm("Clear all job history?")) {
-        state.driverJobs = [];
-        localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, '[]');
-        if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
-      }
-    });
-  }
-
-  function renderView(view) {
-    state.currentView = view;
-    document.querySelectorAll('.menu-nav-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.view === view);
-    });
-    if (view === 'currentJob') renderCurrentJob();
-    else if (view === 'jobHistory') renderJobHistory();
-    else if (view === 'chat') renderChatView();
-    else if (view === 'settings') renderSettingsView();
-  }
-
-  // ===== MAP & GPS =====
-  const BLACK_CAB_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 58 36" width="58" height="36"><rect x="4" y="14" width="50" height="14" rx="3" ry="3" fill="#000"/><path d="M18 14v-4c0-3 2-5 5-5h12c3 0 5 2 5 5v4h-22z" fill="#000"/><rect x="25" y="4" width="8" height="3" rx="1" fill="#FFD700" stroke="#000" stroke-width="0.5"/><text x="29" y="6.6" text-anchor="middle" font-size="2.2" font-weight="bold" fill="#000" font-family="Arial, sans-serif">TAXI</text><rect x="21" y="7" width="6" height="6" rx="1" fill="#fff"/><rect x="31" y="7" width="6" height="6" rx="1" fill="#fff"/><circle cx="15" cy="28" r="4" fill="#fff" stroke="#000" stroke-width="1"/><circle cx="43" cy="28" r="4" fill="#fff" stroke="#000" stroke-width="1"/></svg>`;
-  function createBlackCabIcon(heading = 0) {
-    const div = document.createElement('div');
-    div.innerHTML = BLACK_CAB_SVG;
-    const svg = div.firstElementChild;
-    svg.style.transform = `rotate(${heading}deg)`;
-    return L.divIcon({ html: svg.outerHTML, iconSize: [58, 36], iconAnchor: [29, 18], className: 'taxi-marker' });
-  }
-
-  function initMapImmediately() {
-    document.getElementById('loadingOverlay').style.display = 'none';
-    state.map = L.map('map').setView([52.4068, -1.5197], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
-    state.driverMarker = L.marker([52.4068, -1.5197], {
-      icon: createBlackCabIcon(0)
-    }).addTo(state.map);
-    initGPS();
-  }
-
-  function initGPS() {
-    if (!('geolocation' in navigator)) {
-      state.els.status.innerHTML = '<span class="gps-source gps-poor"></span>Geolocation not supported.';
-      connectMQTT();
-      return;
-    }
-    state.els.status.innerHTML = '<span class="gps-source gps-poor"></span>Searching for GPS...';
-    if (state.gpsWatchId) navigator.geolocation.clearWatch(state.gpsWatchId);
-    state.gpsWatchId = navigator.geolocation.watchPosition(
-      pos => {
-        const gpsData = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy: pos.coords.accuracy || 50,
-          heading: pos.coords.heading || 0
-        };
-        state.driverCoords = gpsData;
-        state.driverMarker.setLatLng([gpsData.lat, gpsData.lng]);
-        state.driverMarker.setIcon(createBlackCabIcon(gpsData.heading));
-        if (state.client?.connected) {
-          state.client.publish(`drivers/${state.DRIVER_ID}/location`, JSON.stringify({
+      state.els.status.innerHTML = '<span class="gps-source gps-poor"></span>Searching for GPS...';
+      if (state.gpsWatchId) navigator.geolocation.clearWatch(state.gpsWatchId);
+      state.gpsWatchId = navigator.geolocation.watchPosition(
+        pos => {
+          const gpsData = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy || 50,
+            heading: pos.coords.heading || 0
+          };
+          state.driverCoords = gpsData;
+          state.driverMarker.setLatLng([gpsData.lat, gpsData.lng]);
+          state.driverMarker.setIcon(createBlackCabIcon(gpsData.heading));
+          state.client?.publish(`drivers/${state.DRIVER_ID}/location`, JSON.stringify({
             driver: state.DRIVER_ID,
             lat: gpsData.lat,
             lng: gpsData.lng,
             status: state.driverPresence,
             ts: Date.now(),
-            heading: Math.round(gpsData.heading)
+            heading: Math.round(gpsData.heading || 0)
+          }));
+          let cls = 'gps-gps';
+          if (gpsData.accuracy > 50) cls = 'gps-poor';
+          else if (gpsData.accuracy > 20) cls = 'gps-network';
+          state.els.status.innerHTML = `<span class="gps-source ${cls}"></span>GPS active`;
+        },
+        err => { state.els.status.textContent = "GPS error: " + err.message; },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 }
+      );
+      connectMQTT();
+    }
+
+    // ========================
+    // MQTT & FCM
+    // ========================
+    function connectMQTT() {
+      state.client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", { reconnectPeriod: 1000 });
+      state.client.on('connect', () => {
+        state.els.status.textContent = `✅ Connected as ${state.DRIVER_ID}`;
+        state.client.subscribe("pubs/requests/+");
+        state.client.subscribe(`jobs/+/result/${state.DRIVER_ID}`);
+        state.client.subscribe(`drivers/${state.DRIVER_ID}/presets`);
+        state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify({
+          driver: state.DRIVER_ID,
+          status: state.driverPresence,
+          ts: Date.now()
+        }));
+        if ('serviceWorker' in navigator) requestFCMToken();
+        if (state.driverCoords) {
+          state.client.publish(`drivers/${state.DRIVER_ID}/location`, JSON.stringify({
+            driver: state.DRIVER_ID,
+            lat: state.driverCoords.lat,
+            lng: state.driverCoords.lng,
+            status: state.driverPresence,
+            ts: Date.now(),
+            heading: Math.round(state.driverCoords.heading || 0)
           }));
         }
-        let cls = 'gps-gps';
-        if (gpsData.accuracy > 50) cls = 'gps-poor';
-        else if (gpsData.accuracy > 20) cls = 'gps-network';
-        state.els.status.innerHTML = `<span class="gps-source ${cls}"></span>GPS active`;
-      },
-      err => {
-        state.els.status.textContent = "GPS error: " + err.message;
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 }
-    );
-    connectMQTT();
-  }
+      });
 
-  // ===== MQTT & FCM =====
-  function connectMQTT() {
-    state.client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", { reconnectPeriod: 1000 });
-    state.client.on('connect', () => {
-      state.els.status.textContent = `✅ Connected as ${state.DRIVER_ID}`;
-      state.client.subscribe("pubs/requests/+");
-      state.client.subscribe(`jobs/+/result/${state.DRIVER_ID}`);
-      state.client.subscribe(`drivers/${state.DRIVER_ID}/presets`);
-      state.client.subscribe("drivers/+/location");
-      state.client.subscribe("drivers/+/status");
-      state.client.subscribe("chat/group");
-      state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify({
-        driver: state.DRIVER_ID,
-        status: state.driverPresence,
-        ts: Date.now()
-      }));
-      if (state.fcmToken) publishFcmToken();
-      if (state.driverCoords) publishLocationThrottled(state.driverCoords);
-    });
+      state.client.on('message', (topic, msg) => {
+        try {
+          const data = JSON.parse(msg.toString());
 
-    state.client.on('message', (topic, msg) => {
-      try {
-        const data = JSON.parse(msg.toString());
+          // PASSENGER PRESETS
+          if (topic === `drivers/${state.DRIVER_ID}/presets`) {
+            const msgText = data.presetType === "where_are_you" ? "Passenger asks: Where are you?" :
+                            data.presetType === "cancel_ride" ? "Passenger wants to cancel the ride." :
+                            data.presetType === "call_driver" ? "Passenger is trying to call you." :
+                            `Passenger message: ${data.presetType}`;
+            speak(msgText);
+            showPassengerPopup(msgText, data);
+          }
 
-        if (topic === `drivers/${state.DRIVER_ID}/presets`) {
-          handlePassengerPreset(data);
-          return;
-        }
-
-        if (topic.startsWith("pubs/requests/")) {
-          if (!state.seenJobIds.has(data.job)) {
-            state.seenJobIds.add(data.job);
-            state.pendingJobs.push({ ...data, receivedAt: Date.now() });
-            localStorage.setItem(`pending_jobs_${state.DRIVER_ID}`, JSON.stringify(state.pendingJobs));
-            addJobToHistory(data, 'queued');
-            if (state.driverPresence === 'available' && !state.isJobActive) {
-              showJobPanel(data);
+          // NEW JOBS
+          if (topic.startsWith("pubs/requests/")) {
+            if (!state.seenJobIds.has(data.job)) {
+              state.pendingJobs.push(data);
+              saveToStorage(`pending_jobs_${state.DRIVER_ID}`, state.pendingJobs);
+              addJobToHistory(data, 'queued');
+              if (state.driverPresence === 'available' && !state.isJobActive) {
+                showJobPanel(data);
+              }
             }
           }
-        }
 
-        if (topic.startsWith("jobs/") && topic.endsWith(`/result/${state.DRIVER_ID}`)) {
-          const jobId = topic.split('/')[1];
-          if (data.result === "won") {
-            updateJobStatus(jobId, 'allocated');
-            state.els.jobWonModal.style.display = 'flex';
-            speak("You won the job!");
-            setTimeout(() => { state.els.jobWonModal.style.display = 'none'; }, 3000);
-            if (!state.isMenuOpen) state.els.menuBtn.click();
-            else renderView('currentJob');
+          // JOB RESULTS
+          if (topic.startsWith("jobs/") && topic.endsWith(`/result/${state.DRIVER_ID}`)) {
+            if (data.result === "won") {
+              const jobIndex = state.driverJobs.findIndex(j => j.job === topic.split('/')[1]);
+              if (jobIndex >= 0) state.driverJobs[jobIndex].status = 'allocated';
+              saveToStorage(`driver_jobs_${state.DRIVER_ID}`, state.driverJobs);
+              // Show simple modal
+              state.els.jobWonModal.style.display = 'flex';
+              speak("You won the job!");
+              // Auto-close after 3s
+              setTimeout(() => { state.els.jobWonModal.style.display = 'none'; }, 3000);
+              // Open menu
+              if (!state.isMenuOpen) state.els.menuBtn.click();
+              else renderView('currentJob');
+            }
           }
-        }
 
-        if (topic === "chat/group") {
-          if (data.sender !== state.DRIVER_ID) {
-            addMessage('group', data.sender, data.text, data.timestamp);
-          }
-        }
-
-        if (topic.startsWith("drivers/") && topic.endsWith("/location")) {
-          const driverId = topic.split('/')[1];
-          if (driverId === state.DRIVER_ID) return;
-          state.otherDrivers[driverId] = data;
-          state.driverStatus[driverId] = data.ts;
-        }
-        if (topic.startsWith("drivers/") && topic.endsWith("/status")) {
-          const driverId = topic.split('/')[1];
-          if (driverId === state.DRIVER_ID) return;
-          state.driverStatus[driverId] = data.ts;
-        }
-
-      } catch (e) {
-        console.error("MQTT error:", e);
-      }
-    });
-  }
-
-  function handlePassengerPreset(data) {
-    const msg = 
-      data.presetType === "where_are_you" ? "Passenger asks: Where are you?" :
-      data.presetType === "cancel_ride" ? "Passenger wants to cancel the ride." :
-      data.presetType === "call_driver" ? "Passenger is trying to call you." :
-      `Passenger message: ${data.presetType}`;
-    speak(msg);
-    showPassengerPopup(msg, data);
-  }
-
-  function showPassengerPopup(msg, data) {
-    document.getElementById('passengerPopupMsg').textContent = msg;
-    document.getElementById('passengerPopup').style.display = 'block';
-    setTimeout(() => { document.getElementById('passengerPopup').style.display = 'none'; }, 15000);
-    document.getElementById('presetReply1').onclick = () => sendPresetReply('on_my_way', data);
-    document.getElementById('presetReply2').onclick = () => sendPresetReply('arrived', data);
-  }
-
-  function sendPresetReply(type, data) {
-    if (!state.client) return;
-    state.client.publish('server/preset_replies', JSON.stringify({
-      type: 'driver_preset_reply',
-      replyType: type,
-      driverId: state.DRIVER_ID,
-      jobId: data?.jobId,
-      timestamp: Date.now()
-    }));
-    document.getElementById('passengerPopup').style.display = 'none';
-  }
-
-  function updateJobStatus(jobId, status) {
-    const jobIndex = state.driverJobs.findIndex(j => j.job === jobId);
-    if (jobIndex >= 0) {
-      state.driverJobs[jobIndex].status = status;
-      localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
-      if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
-      if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
-    }
-  }
-
-  function publishLocationThrottled(gpsData) {
-    if (!state.client?.connected) return;
-    state.client.publish(`drivers/${state.DRIVER_ID}/location`, JSON.stringify({
-      driver: state.DRIVER_ID,
-      lat: gpsData.lat,
-      lng: gpsData.lng,
-      status: state.driverPresence,
-      ts: Date.now(),
-      heading: Math.round(gpsData.heading || 0)
-    }));
-  }
-
-  async function requestFCMToken() {
-    try {
-      const perm = await Notification.requestPermission();
-      if (perm !== 'granted') return;
-      const reg = await navigator.serviceWorker.register('/blackcabunite/firebase-messaging-sw.js', { scope: '/blackcabunite/' });
-      state.fcmToken = await messaging.getToken({
-        vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
-        serviceWorkerRegistration: reg
+        } catch (e) { console.error("MQTT error:", e); }
       });
-      if (state.fcmToken) publishFcmToken();
-    } catch (err) {
-      console.error('FCM error:', err);
     }
-  }
 
-  function publishFcmToken() {
-    if (!state.client?.connected || !state.fcmToken || !state.DRIVER_ID) return;
-    state.client.publish(`drivers/${state.DRIVER_ID}/fcm`, JSON.stringify({
-      driverId: state.DRIVER_ID,
-      fcmToken: state.fcmToken,
-      ts: Date.now()
-    }));
-  }
+    async function requestFCMToken() {
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') return;
+        const reg = await navigator.serviceWorker.register('/blackcabunite/firebase-messaging-sw.js', { scope: '/blackcabunite/' });
+        state.fcmToken = await messaging.getToken({
+          vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
+          serviceWorkerRegistration: reg
+        });
+        if (state.fcmToken && state.client) {
+          state.client.publish(`drivers/${state.DRIVER_ID}/fcm`, JSON.stringify({
+            driverId: state.DRIVER_ID,
+            fcmToken: state.fcmToken,
+            ts: Date.now()
+          }));
+        }
+      } catch (err) { console.error('FCM error:', err); }
+    }
 
-  // ===== INITIALIZATION =====
-  function initApp() {
-    if (!state.DRIVER_ID || !validateDriverId(state.DRIVER_ID)) {
-      while (!state.DRIVER_ID || !validateDriverId(state.DRIVER_ID)) {
-        state.DRIVER_ID = prompt("Enter your driver ID (letters, numbers, - _):");
-        if (state.DRIVER_ID === null) state.DRIVER_ID = 'driver-' + Math.random().toString(36).substr(2, 8);
+    function showPassengerPopup(msg, data) {
+      document.getElementById('passengerPopupMsg').textContent = msg;
+      document.getElementById('passengerPopup').style.display = 'block';
+      setTimeout(() => { document.getElementById('passengerPopup').style.display = 'none'; }, 15000);
+      document.getElementById('presetReply1').onclick = () => sendPresetReply('on_my_way', data);
+      document.getElementById('presetReply2').onclick = () => sendPresetReply('arrived', data);
+    }
+
+    function sendPresetReply(type, data) {
+      if (!state.client) return;
+      state.client.publish('server/preset_replies', JSON.stringify({
+        type: 'driver_preset_reply',
+        replyType: type,
+        driverId: state.DRIVER_ID,
+        jobId: data?.jobId,
+        timestamp: Date.now()
+      }));
+      document.getElementById('passengerPopup').style.display = 'none';
+    }
+
+    // ========================
+    // Initialization
+    // ========================
+    function initApp() {
+      loadState();
+      if (!state.DRIVER_ID || !validateDriverId(state.DRIVER_ID)) {
+        while (!state.DRIVER_ID || !validateDriverId(state.DRIVER_ID)) {
+          state.DRIVER_ID = prompt("Enter your driver ID (letters, numbers, - _):");
+          if (state.DRIVER_ID === null) state.DRIVER_ID = 'driver-' + Math.random().toString(36).substr(2, 8);
+        }
+        localStorage.setItem('driver_id', state.DRIVER_ID);
+        state.driverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${state.DRIVER_ID}`)) || [];
+        state.pendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${state.DRIVER_ID}`)) || [];
+        state.seenJobIds = new Set([...state.driverJobs.map(j => j.job), ...state.pendingJobs.map(p => p.job)]);
       }
-      localStorage.setItem('driver_id', state.DRIVER_ID);
-      state.driverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${state.DRIVER_ID}`)) || [];
-      state.pendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${state.DRIVER_ID}`)) || [];
-      state.seenJobIds = new Set([...state.driverJobs.map(j => j.job), ...state.pendingJobs.map(p => p.job)]);
-    }
 
-    // Menu Toggle
-    state.els.menuBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      state.isMenuOpen = !state.isMenuOpen;
-      state.els.menuPanel.classList.toggle('active', state.isMenuOpen);
-      if (state.isMenuOpen) renderView(state.currentView);
-    });
-
-    // Nav Buttons
-    document.querySelectorAll('.menu-nav-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      // Menu toggle
+      state.els.menuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        renderView(btn.dataset.view);
+        state.isMenuOpen = !state.isMenuOpen;
+        state.els.menuPanel.classList.toggle('active', state.isMenuOpen);
+        if (state.isMenuOpen) renderView(state.currentView);
       });
-    });
 
-    // Job Actions
-    state.els.acceptBtn.addEventListener('click', () => respondToJob(true));
-    state.els.rejectBtn.addEventListener('click', () => respondToJob(false));
+      // Nav buttons
+      document.querySelectorAll('.menu-nav-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          renderView(btn.dataset.view);
+        });
+      });
 
-    // Status Dropdown
-    document.getElementById('appTitleContainer').addEventListener('click', (e) => {
-      e.stopPropagation();
-      state.els.statusDropdown.style.display = state.els.statusDropdown.style.display === 'flex' ? 'none' : 'flex';
-    });
-    document.querySelectorAll('.status-option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        state.driverPresence = opt.dataset.status;
-        localStorage.setItem('driver_presence', state.driverPresence);
-        document.getElementById('statusCaption').className = `status-${state.driverPresence}`;
-        document.getElementById('statusCaption').innerHTML = `<span class="status-dot"></span> ${state.driverPresence.charAt(0).toUpperCase() + state.driverPresence.slice(1)}`;
+      // Job actions
+      state.els.acceptBtn.addEventListener('click', () => respondToJob(true));
+      state.els.rejectBtn.addEventListener('click', () => respondToJob(false));
+
+      // Status dropdown
+      document.getElementById('appTitleContainer').addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.els.statusDropdown.style.display = state.els.statusDropdown.style.display === 'flex' ? 'none' : 'flex';
+      });
+      document.querySelectorAll('.status-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          state.driverPresence = opt.dataset.status;
+          localStorage.setItem('driver_presence', state.driverPresence);
+          document.getElementById('statusCaption').className = `status-${state.driverPresence}`;
+          document.getElementById('statusCaption').innerHTML = `<span class="status-dot"></span> ${state.driverPresence.charAt(0).toUpperCase() + state.driverPresence.slice(1)}`;
+          state.els.statusDropdown.style.display = 'none';
+        });
+      });
+      document.getElementById('logOffBtn').addEventListener('click', () => {
+        state.driverPresence = 'offline';
+        localStorage.setItem('driver_presence', 'offline');
+        document.getElementById('statusCaption').className = 'status-offline';
+        document.getElementById('statusCaption').innerHTML = '<span class="status-dot"></span> Offline';
         state.els.statusDropdown.style.display = 'none';
       });
-    });
-    document.getElementById('logOffBtn').addEventListener('click', () => {
-      state.driverPresence = 'offline';
-      localStorage.setItem('driver_presence', 'offline');
-      document.getElementById('statusCaption').className = 'status-offline';
-      document.getElementById('statusCaption').innerHTML = '<span class="status-dot"></span> Offline';
-      state.els.statusDropdown.style.display = 'none';
-    });
 
-    // Global Click Handler
-    document.addEventListener('click', (e) => {
-      state.els.statusDropdown.style.display = 'none';
-      const isClickInsideMenu = state.els.menuPanel.contains(e.target) || e.target === state.els.menuBtn;
-      if (state.isMenuOpen && !isClickInsideMenu) {
-        state.els.menuPanel.classList.remove('active');
-        state.isMenuOpen = false;
-      }
-    });
+      // Global click
+      document.addEventListener('click', (e) => {
+        state.els.statusDropdown.style.display = 'none';
+        const isClickInsideMenu = state.els.menuPanel.contains(e.target) || e.target === state.els.menuBtn;
+        if (state.isMenuOpen && !isClickInsideMenu) {
+          state.els.menuPanel.classList.remove('active');
+          state.isMenuOpen = false;
+        }
+      });
 
-    // Initialize Map
-    initMapImmediately();
-    if ('serviceWorker' in navigator && Notification.permission !== 'denied') {
-      requestFCMToken();
+      initMapImmediately();
     }
-  }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initApp);
-  } else {
-    initApp();
-  }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
   </script>
 </body>
 </html>
