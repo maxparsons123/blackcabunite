@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.8</title>
+  <title>Black Cab Unite v8.8-Logged</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -521,7 +521,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.8</div>
+      <div id="appTitle">Black Cab Unite v8.8-Logged</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -670,7 +670,7 @@
       localStorage.setItem(key, JSON.stringify(value));
     }
 
-    // ✅ FIXED: Helper functions defined BEFORE main functions
+    // ✅ FIXED: Define helper functions BEFORE they are used
     function showMicIndicator() {
       state.els.micIndicator.style.display = 'block';
     }
@@ -727,7 +727,7 @@
         state.speechRecognition = null;
       };
       state.speechRecognition.onerror = () => { state.speechRecognition = null; };
-      state.speechRecognition.onend = () => { state.speechRecognition = null; hideMicIndicator(); };
+      state.speechRecognition.onend = () => { state.speechRecognition = null; hideMicIndicator(); }; // ✅ Uses defined function
       try { state.speechRecognition.start(); } catch (e) {}
     }
 
@@ -783,9 +783,13 @@
       }
     }
 
-    // ✅ FIXED: Removed redundant seenJobIds check from inside showJobPanel
     function showJobPanel(job) {
-      // NO check here - handled in MQTT handler
+      // ✅ CRITICAL FIX: Use the CORRECT state.seenJobIds set
+      if (state.seenJobIds.has(job.job)) {
+        console.log("⏭️ Skipping duplicate job (already seen):", job.job);
+        return;
+      }
+      state.seenJobIds.add(job.job); // Mark as seen immediately
       state.isJobActive = true;
       state.currentJob = job;
       state.els.jobPanel.style.display = 'block';
@@ -1262,10 +1266,11 @@
       }));
     }
 
-    // ===== MQTT & FCM =====
+    // ===== MQTT & FCM (WITH LOGGING) =====
     function connectMQTT() {
       state.client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", { reconnectPeriod: 1000 });
       state.client.on('connect', () => {
+        console.log("✅ MQTT Connected as:", state.DRIVER_ID);
         state.els.status.textContent = `✅ Connected as ${state.DRIVER_ID}`;
         state.client.subscribe("pubs/requests/+");
         state.client.subscribe(`jobs/+/result/${state.DRIVER_ID}`);
@@ -1274,11 +1279,11 @@
         state.client.subscribe("drivers/+/status");
         state.client.subscribe("chat/group");
         state.client.subscribe(`chat/private/${state.DRIVER_ID}/+`);
-        state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify({
-          driver: state.DRIVER_ID,
-          status: state.driverPresence,
-          ts: Date.now()
-        }));
+        console.log("📡 Subscribed to topics for driver:", state.DRIVER_ID);
+        // ✅ LOG: Publish driver status
+        const statusPayload = { driver: state.DRIVER_ID, status: state.driverPresence, ts: Date.now() };
+        state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify(statusPayload));
+        console.log("📤 Published initial status:", statusPayload);
         if (state.fcmToken) publishFcmToken();
         if (state.driverCoords) publishLocationThrottled(state.driverCoords);
       });
@@ -1286,6 +1291,9 @@
       state.client.on('message', (topic, msg) => {
         try {
           const data = JSON.parse(msg.toString());
+          
+          // ✅ LOG: All MQTT messages
+          console.log("📡 MQTT received:", topic, data);
 
           // PASSENGER PRESETS
           if (topic === `drivers/${state.DRIVER_ID}/presets`) {
@@ -1295,12 +1303,11 @@
 
           // ✅ FIXED: NEW JOBS - Check seenJobIds BEFORE calling showJobPanel
           if (topic.startsWith("pubs/requests/")) {
-            if (state.seenJobIds.has(data.job)) { // ✅ Check here in MQTT handler
+            if (state.seenJobIds.has(data.job)) {
               console.log("⏭️ Skipping duplicate job (MQTT):", data.job);
               return; // Exit early if duplicate
             }
-            // Mark as seen IMMEDIATELY after check
-            state.seenJobIds.add(data.job);
+            state.seenJobIds.add(data.job); // Mark as seen immediately
             console.log("🆕 New unique job received and marked as seen:", data.job);
 
             state.pendingJobs.push({ ...data, receivedAt: Date.now() });
@@ -1358,6 +1365,7 @@
             const driverId = topic.split('/')[1];
             if (driverId === state.DRIVER_ID) return;
             state.driverStatus[driverId] = data.ts;
+            console.log(`📊 Driver ${driverId} status updated:`, data.status);
             updateChatList();
           }
 
@@ -1394,31 +1402,42 @@
         jobId: data?.jobId,
         timestamp: Date.now()
       }));
+      console.log("📤 Sent preset reply:", type, "for job", data?.jobId);
       document.getElementById('passengerPopup').style.display = 'none';
     }
 
+    // ✅ LOGGED: FCM Token Flow
     async function requestFCMToken() {
       try {
+        console.log("🔐 Requesting FCM token...");
         const perm = await Notification.requestPermission();
-        if (perm !== 'granted') return;
+        if (perm !== 'granted') {
+          console.log("❌ FCM Permission denied by user.");
+          return null;
+        }
+        console.log("✅ FCM Permission granted. Registering service worker...");
         const reg = await navigator.serviceWorker.register('/blackcabunite/firebase-messaging-sw.js', { scope: '/blackcabunite/' });
+        console.log("✅ Service worker registered for FCM.");
         state.fcmToken = await messaging.getToken({
           vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
           serviceWorkerRegistration: reg
         });
+        console.log("🔑 Acquired FCM token:", state.fcmToken ? state.fcmToken.substring(0, 12) + '...' : 'null');
         if (state.fcmToken) publishFcmToken();
+        return state.fcmToken;
       } catch (err) {
-        console.error('FCM error:', err);
+        console.error('❌ FCM setup failed:', err);
       }
     }
 
     function publishFcmToken() {
-      if (!state.client?.connected || !state.fcmToken || !state.DRIVER_ID) return;
-      state.client.publish(`drivers/${state.DRIVER_ID}/fcm`, JSON.stringify({
-        driverId: state.DRIVER_ID,
-        fcmToken: state.fcmToken,
-        ts: Date.now()
-      }));
+      if (!state.client?.connected || !state.fcmToken || !state.DRIVER_ID) {
+        console.log("⚠️ Cannot publish FCM token - MQTT not connected or missing data.");
+        return;
+      }
+      const payload = { driverId: state.DRIVER_ID, fcmToken: state.fcmToken, ts: Date.now() };
+      state.client.publish(`drivers/${state.DRIVER_ID}/fcm`, JSON.stringify(payload));
+      console.log("📤 Published FCM token via MQTT for driver:", state.DRIVER_ID);
     }
 
     function updateJobStatus(jobId, status) {
@@ -1480,21 +1499,22 @@
       });
       document.querySelectorAll('.status-option').forEach(opt => {
         opt.addEventListener('click', () => {
-          state.driverPresence = opt.dataset.status;
-          localStorage.setItem('driver_presence', state.driverPresence);
-          document.getElementById('statusCaption').className = `status-${state.driverPresence}`;
-          document.getElementById('statusCaption').innerHTML = `<span class="status-dot"></span> ${state.driverPresence.charAt(0).toUpperCase() + state.driverPresence.slice(1)}`;
+          const newStatus = opt.dataset.status;
+          console.log(`🔄 Driver status changing from '${state.driverPresence}' to '${newStatus}'`);
+          state.driverPresence = newStatus;
+          localStorage.setItem('driver_presence', newStatus);
+          document.getElementById('statusCaption').className = `status-${newStatus}`;
+          document.getElementById('statusCaption').innerHTML = `<span class="status-dot"></span> ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`;
           state.els.statusDropdown.style.display = 'none';
           if (state.client?.connected) {
-            state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify({
-              driver: state.DRIVER_ID,
-              status: state.driverPresence,
-              ts: Date.now()
-            }));
+            const statusPayload = { driver: state.DRIVER_ID, status: newStatus, ts: Date.now() };
+            state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify(statusPayload));
+            console.log("📤 Published status change via MQTT:", statusPayload);
           }
         });
       });
       document.getElementById('logOffBtn').addEventListener('click', () => {
+        console.log("🚪 Driver logging off (setting status to offline)");
         state.driverPresence = 'offline';
         localStorage.setItem('driver_presence', 'offline');
         document.getElementById('statusCaption').className = 'status-offline';
