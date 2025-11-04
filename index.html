@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.8</title>
+  <title>Black Cab Unite v8.7</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -521,7 +521,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.8</div>
+      <div id="appTitle">Black Cab Unite v8.7</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -623,8 +623,7 @@
       isSpeaking: false,
       voiceAttemptCount: 0,
       maxRadius: parseFloat(localStorage.getItem('max_radius_km') || '10'),
-      // ✅ FIXED: Initialize seenJobIds correctly from saved data
-      seenJobIds: new Set(),
+      // ✅ REMOVED: seenJobIds Set (not needed anymore)
       driverJobs: JSON.parse(localStorage.getItem(`driver_jobs_${localStorage.getItem('driver_id')}`)) || [],
       pendingJobs: JSON.parse(localStorage.getItem(`pending_jobs_${localStorage.getItem('driver_id')}`)) || [],
       chatMessages: { group: JSON.parse(localStorage.getItem(`chat_group_${localStorage.getItem('driver_id')}`)) || [] },
@@ -655,29 +654,9 @@
       }
     };
 
-    // ✅ CRITICAL FIX: Populate seenJobIds from saved jobs IMMEDIATELY after state is defined
-    const savedDriverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${state.DRIVER_ID}`)) || [];
-    const savedPendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${state.DRIVER_ID}`)) || [];
-    state.seenJobIds = new Set([...savedDriverJobs.map(j => j.job), ...savedPendingJobs.map(p => p.job)]);
-    console.log("✅ Initial seenJobIds:", [...state.seenJobIds]);
-
     // ===== VALIDATION =====
     function validateDriverId(id) {
       return id && /^[a-zA-Z0-9_-]+$/.test(id);
-    }
-
-    // ===== UI HELPERS (DEFINED FIRST) =====
-    function showMicIndicator() {
-      state.els.micIndicator.style.display = 'block';
-    }
-    function hideMicIndicator() { // ✅ DEFINED
-      state.els.micIndicator.style.display = 'none';
-    }
-    function updateChatList() { // ✅ DEFINED
-      // Placeholder function - implement logic if needed for chat contacts
-      // Example:
-      // const chatList = document.getElementById('chatList');
-      // chatList.innerHTML = Object.keys(state.otherDrivers).map(id => `<div>${id}</div>`).join('');
     }
 
     // ===== TTS / STT =====
@@ -724,12 +703,12 @@
         state.speechRecognition = null;
       };
       state.speechRecognition.onerror = () => { state.speechRecognition = null; };
-      state.speechRecognition.onend = () => { state.speechRecognition = null; hideMicIndicator(); }; // ✅ Uses defined function
+      state.speechRecognition.onend = () => { state.speechRecognition = null; hideMicIndicator(); };
       try { state.speechRecognition.start(); } catch (e) {}
     }
 
     function stopVoiceListener() {
-      hideMicIndicator(); // ✅ Uses defined function
+      hideMicIndicator();
       if (state.speechRecognition) {
         state.speechRecognition.abort();
         state.speechRecognition = null;
@@ -740,11 +719,11 @@
     function promptForVoiceResponse() {
       if (state.isSpeaking || !state.isJobActive) return;
       if (state.voiceAttemptCount === 0) {
-        showMicIndicator(); // ✅ Uses defined function
+        showMicIndicator();
         setTimeout(startVoiceListener, 300); // Small buffer for UI update
       } else if (state.voiceAttemptCount < 3) {
         speakFeedback("Did not hear you. Please say ‘accept’ or ‘reject’.", () => {
-          showMicIndicator(); // ✅ Uses defined function
+          showMicIndicator();
           startVoiceListener();
         });
       } else {
@@ -756,7 +735,7 @@
             );
             utterance.onend = () => {
               state.voiceAttemptCount = 0;
-              showMicIndicator(); // ✅ Uses defined function
+              showMicIndicator();
               setTimeout(promptForVoiceResponse, 300);
             };
             speechSynthesis.speak(utterance);
@@ -769,7 +748,7 @@
     function cleanupJob() {
       if (state.jobTimerInterval) clearInterval(state.jobTimerInterval);
       state.els.jobPanel.style.display = 'none';
-      stopVoiceListener(); // ✅ Uses defined function
+      stopVoiceListener();
       speechSynthesis.cancel();
       state.currentJob = null;
       state.isJobActive = false;
@@ -780,12 +759,6 @@
     }
 
     function showJobPanel(job) {
-      // ✅ CRITICAL FIX: Use the CORRECT state.seenJobIds set
-      if (state.seenJobIds.has(job.job)) {
-        console.log("⏭️ Skipping duplicate job (already seen):", job.job);
-        return;
-      }
-      state.seenJobIds.add(job.job); // Mark as seen immediately
       state.isJobActive = true;
       state.currentJob = job;
       state.els.jobPanel.style.display = 'block';
@@ -805,14 +778,14 @@
       }, 1000);
       speakFeedback(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}`, () => {
         state.voiceAttemptCount = 0;
-        promptForVoiceResponse(); // ✅ Uses defined function
+        promptForVoiceResponse();
       });
     }
 
     function respondToJob(accepted, job = state.currentJob) {
       if (!job || !state.client) return;
       if (state.jobTimerInterval) clearInterval(state.jobTimerInterval);
-      stopVoiceListener(); // ✅ Uses defined function
+      stopVoiceListener();
       speechSynthesis.cancel();
       const payload = {
         job: job.job,
@@ -1073,7 +1046,7 @@
       if (chatMessages) chatMessages.style.display = 'flex';
       if (chatInputContainer) chatInputContainer.style.display = 'flex';
       state.unreadCounts[chatId] = 0;
-      updateChatList(); // ✅ Uses defined function
+      updateChatList();
       renderChatMessages();
       const chatInput = document.getElementById('chatInput');
       if (chatInput) chatInput.focus();
@@ -1293,17 +1266,19 @@
             return;
           }
 
-          // ✅ FIXED: NEW JOBS - Use CORRECT state.seenJobIds
+          // ✅ FIXED: NEW JOBS - Check local storage for duplicates ONLY
           if (topic.startsWith("pubs/requests/")) {
-            // ✅ CRITICAL FIX: Check against the CORRECT state.seenJobIds Set
-            if (state.seenJobIds.has(data.job)) {
-              console.log("⏭️ Skipping duplicate job (MQTT):", data.job);
-              return; // Exit early if duplicate
-            }
-            // Mark as seen IMMEDIATELY after checking
-            state.seenJobIds.add(data.job);
-            console.log("🆕 New unique job received and marked as seen:", data.job);
+            // Check if job ID already exists in saved jobs or pending
+            const jobId = data.job;
+            const jobExistsInHistory = state.driverJobs.some(job => job.job === jobId);
+            const jobExistsInPending = state.pendingJobs.some(job => job.job === jobId);
 
+            if (jobExistsInHistory || jobExistsInPending) {
+              console.log("⏭️ Skipping duplicate job (already in storage):", jobId);
+              return; // Do nothing if duplicate found
+            }
+
+            // Job is new, proceed
             state.pendingJobs.push({ ...data, receivedAt: Date.now() });
             localStorage.setItem(`pending_jobs_${state.DRIVER_ID}`, JSON.stringify(state.pendingJobs));
             addJobToHistory(data, 'queued');
@@ -1353,13 +1328,13 @@
             if (driverId === state.DRIVER_ID) return;
             state.otherDrivers[driverId] = data;
             state.driverStatus[driverId] = data.ts;
-            updateChatList(); // ✅ Uses defined function
+            updateChatList();
           }
           if (topic.startsWith("drivers/") && topic.endsWith("/status")) {
             const driverId = topic.split('/')[1];
             if (driverId === state.DRIVER_ID) return;
             state.driverStatus[driverId] = data.ts;
-            updateChatList(); // ✅ Uses defined function
+            updateChatList();
           }
 
         } catch (e) {
@@ -1471,8 +1446,8 @@
       });
 
       // Job Actions (Accept/Reject Buttons)
-      state.els.acceptBtn.addEventListener('click', () => respondToJob(true)); // ✅ Uses defined function
-      state.els.rejectBtn.addEventListener('click', () => respondToJob(false)); // ✅ Uses defined function
+      state.els.acceptBtn.addEventListener('click', () => respondToJob(true));
+      state.els.rejectBtn.addEventListener('click', () => respondToJob(false));
 
       // Status Dropdown
       document.getElementById('appTitleContainer').addEventListener('click', (e) => {
