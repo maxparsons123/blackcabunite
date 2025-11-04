@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.3</title>
+  <title>Black Cab Unite v8.2</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -393,18 +393,6 @@
     .job-item.swiping::after {
       opacity: 1;
     }
-    /* --- CUSTOM CHAT STYLES (ADDED) --- */
-    #chatView {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
-    #chatHeader {
-      background: #000;
-      color: #FFD700;
-      padding: 12px 16px;
-      font-weight: bold;
-    }
     #chatMessages {
       flex: 1;
       padding: 16px;
@@ -415,105 +403,47 @@
     }
     .message {
       max-width: 85%;
-      padding: 12px 16px;
-      border-radius: 16px;
+      padding: 14px 16px;
+      border-radius: 20px;
+      font-size: 15px;
+      line-height: 1.5;
       word-wrap: break-word;
     }
-    .message.sent {
-      align-self: flex-end;
-      background: #000;
-      color: #FFD700;
-      border-bottom-right-radius: 4px;
-    }
-    .message.received {
-      align-self: flex-start;
-      background: #f1f3f5;
-      color: #000;
-      border-bottom-left-radius: 4px;
-    }
-    .message-sender {
-      font-size: 11px;
-      font-weight: bold;
-      margin-bottom: 4px;
-      opacity: 0.8;
-    }
-    .message-time {
-      font-size: 11px;
-      opacity: 0.7;
-      margin-top: 4px;
-    }
-    #chatInput {
+    .received { background: #e9ecef; align-self: flex-start; border-bottom-left-radius: 6px; }
+    .sent { background: #000; color: white; align-self: flex-end; border-bottom-right-radius: 6px; }
+    #chatInputContainer {
       display: flex;
       padding: 12px;
       background: white;
       border-top: 1px solid #eee;
-      gap: 8px;
     }
-    #chatInput input {
+    #chatInput {
       flex: 1;
-      padding: 12px 16px;
+      padding: 14px;
       border: 2px solid #ddd;
       border-radius: 24px;
       font-size: 16px;
       outline: none;
     }
-    #chatInput input:focus {
-      border-color: #FFD700;
+    #chatInput:focus {
+      border-color: #1f6feb;
+      box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.2);
     }
     #sendBtn {
       background: #000;
       color: #FFD700;
       border: none;
-      width: 48px;
-      height: 48px;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
+      margin-left: 12px;
       cursor: pointer;
-      font-weight: bold;
-    }
-    /* --- END CUSTOM CHAT STYLES --- */
-    #chatList {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px;
-    }
-    .contact-item {
-      padding: 16px;
-      border-bottom: 1px solid #eee;
       display: flex;
       align-items: center;
-      gap: 16px;
-      cursor: pointer;
-      border-radius: 8px;
-      transition: background 0.2s;
-    }
-    .contact-item:hover {
-      background: #f8f9fa;
-    }
-    .contact-name {
-      font-weight: 700;
-      font-size: 16px;
-      margin-bottom: 4px;
-    }
-    .contact-status {
-      font-size: 13px;
-      color: #6c757d;
-    }
-    .contact-badge {
-      background: #28a745;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      margin-left: auto;
-    }
-    .offline { background: #6c757d; }
-    .unread-badge {
-      background: #FFD700;
-      color: #000;
-      border-radius: 12px;
-      padding: 4px 8px;
-      font-size: 12px;
-      margin-left: 8px;
-      font-weight: 700;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
     .settings-group {
       margin-bottom: 24px;
@@ -561,7 +491,7 @@
       color: #666;
       line-height: 1.5;
     }
-    /* Job Won Modal */
+    /* Job Won Modal - Simple */
     #jobWonModal {
       display: none;
       position: fixed;
@@ -591,7 +521,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.3</div>
+      <div id="appTitle">Black Cab Unite v8.2</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -846,7 +776,6 @@
         state.els.timerSeconds.textContent = secondsLeft;
         if (secondsLeft <= 0) {
           clearInterval(state.jobTimerInterval);
-          state.jobTimerInterval = null;
           cleanupJob();
         }
       }, 1000);
@@ -856,18 +785,29 @@
       });
     }
 
-    function respondToJob(accepted) {
-      if (!state.currentJob || !state.client) return;
-      state.client.publish(`jobs/${state.currentJob.job}/status`, JSON.stringify({
-        job: state.currentJob.job,
+    function respondToJob(accepted, job = state.currentJob) {
+      if (!job || !state.client) return;
+      if (state.jobTimerInterval) {
+        clearInterval(state.jobTimerInterval);
+        state.jobTimerInterval = null;
+      }
+      stopVoiceListener();
+      speechSynthesis.cancel();
+      const payload = {
+        job: job.job,
         driver: state.DRIVER_ID,
         status: accepted ? "bidding" : "rejected",
-        lat: state.driverCoords?.lat || state.currentJob.lat,
-        lng: state.driverCoords?.lng || state.currentJob.lng,
+        lat: state.driverCoords?.lat || job.lat,
+        lng: state.driverCoords?.lng || job.lng,
         ts: Date.now()
-      }));
-      cleanupJob();
-      addJobToHistory(state.currentJob, accepted ? "bidding" : "rejected");
+      };
+      state.client.publish(`jobs/${job.job}/status`, JSON.stringify(payload));
+      if (job === state.currentJob) {
+        cleanupJob();
+      } else {
+        // If responding to a job from history, add to history again with new status
+        addJobToHistory(job, accepted ? "bidding" : "rejected");
+      }
     }
 
     function addJobToHistory(jobData, initialStatus = 'queued') {
@@ -921,6 +861,20 @@
         const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
         const dateStr = date.toLocaleDateString();
 
+        let actionButtons = '';
+        if (job.status === 'queued') {
+          actionButtons = `
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <button class="settings-btn" style="flex:1; padding:8px; font-size:14px;" data-action="view" data-jobid="${job.job}">
+                View Details
+              </button>
+              <button class="settings-btn" style="flex:1; padding:8px; font-size:14px; background:#28a745;" data-action="bid" data-jobid="${job.job}">
+                💰 Bid Now
+              </button>
+            </div>
+          `;
+        }
+
         jobEl.innerHTML = `
           <div class="job-id">${job.job}</div>
           <div class="job-pub">Pub: ${job.pubName}</div>
@@ -931,10 +885,34 @@
             <span class="job-status status-${job.status}">${job.status.toUpperCase()}</span>
             <span style="font-size:12px; color:#666;">${dateStr} ${timeStr}</span>
           </div>
+          ${actionButtons}
         `;
         jobsContainer.appendChild(jobEl);
       });
       state.els.menuContent.appendChild(jobsContainer);
+
+      // Attach event listeners for action buttons
+      state.els.menuContent.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const action = e.target.dataset.action;
+          const jobId = e.target.dataset.jobid;
+          const job = state.pendingJobs.find(j => j.job === jobId) ||
+                      state.driverJobs.find(j => j.job === jobId && j.status === 'queued');
+          if (!job) {
+            alert("Job no longer available.");
+            return;
+          }
+          if (action === 'view') {
+            if (state.isJobActive) {
+              alert("Please finish the current job first.");
+              return;
+            }
+            showJobPanel(job);
+          } else if (action === 'bid') {
+            respondToJob(true, job);
+          }
+        });
+      });
 
       // ✅ ATTACH SWIPE-TO-DELETE AFTER DOM IS POPULATED
       attachSwipeToDelete();
@@ -998,32 +976,32 @@
 
         // Touch Events for mobile
         item.addEventListener('touchstart', e => {
-            handleStart(e.touches[0].clientX);
-            e.preventDefault(); // Prevent scrolling while swiping
+          handleStart(e.touches[0].clientX);
+          e.preventDefault(); // Prevent scrolling while swiping
         });
         item.addEventListener('touchmove', e => {
-            handleMove(e.touches[0].clientX);
-            e.preventDefault(); // Prevent scrolling while swiping
+          handleMove(e.touches[0].clientX);
+          e.preventDefault(); // Prevent scrolling while swiping
         });
         item.addEventListener('touchend', handleEnd);
 
         // Mouse Events for desktop/testing
         item.addEventListener('mousedown', e => {
-            handleStart(e.clientX);
-            e.preventDefault(); // Prevent text selection
+          handleStart(e.clientX);
+          e.preventDefault(); // Prevent text selection
         });
         item.addEventListener('mousemove', e => {
-            if (isSwiping) {
-                handleMove(e.clientX);
-                e.preventDefault(); // Prevent text selection during swipe
-            }
+          if (isSwiping) {
+            handleMove(e.clientX);
+            e.preventDefault(); // Prevent text selection during swipe
+          }
         });
         item.addEventListener('mouseup', handleEnd);
         // Also handle mouse leaving the element while dragging
         item.addEventListener('mouseleave', () => {
-            if (isSwiping) {
-                handleEnd();
-            }
+          if (isSwiping) {
+            handleEnd();
+          }
         });
 
         // Prevent text selection during swipe interaction
@@ -1032,86 +1010,93 @@
     }
 
 
-    // ===== CHAT SYSTEM (NEW - Using Custom HTML) =====
     function renderChatView() {
       state.els.menuContent.innerHTML = `
-        <div id="chatView">
-          <div id="chatHeader">Driver Group Chat</div>
-          <div id="chatMessages"></div>
-          <div id="chatInput">
-            <input type="text" id="messageInput" placeholder="Type a message..." />
-            <button id="sendBtn">➤</button>
+        <div id="chatContent" style="height:100%; display:flex; flex-direction:column;">
+          <div id="chatList" style="flex:1; overflow-y:auto; padding:8px;">
+            <div class="contact-item" data-chat="group">
+              <div class="other-driver-icon" style="background:#6f42c1;">GC</div>
+              <div>
+                <div class="contact-name">Group Chat</div>
+                <div class="contact-status">All drivers</div>
+              </div>
+              ${state.unreadCounts.group > 0 ? `<div class="unread-badge">${state.unreadCounts.group}</div>` : ''}
+            </div>
+          </div>
+          <div id="chatMessages" style="flex:1; padding:16px; overflow-y:auto; display:none; flex-direction:column; gap:12px;"></div>
+          <div id="chatInputContainer" style="padding:12px; background:white; border-top:1px solid #eee; display:none;">
+            <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off" style="flex:1; padding:14px; border:2px solid #ddd; border-radius:24px; font-size:16px;">
+            <button id="sendBtn" style="background:#000; color:#FFD700; border:none; width:52px; height:52px; border-radius:50%; margin-left:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:20px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">➤</button>
           </div>
         </div>
       `;
+      const chatListEl = document.getElementById('chatList');
+      if (chatListEl) {
+        chatListEl.addEventListener('click', (e) => {
+          const contact = e.target.closest('.contact-item');
+          if (contact) {
+            e.stopPropagation();
+            openChat(contact.dataset.chat);
+          }
+        });
+      }
+      openChat('group');
+    }
 
-      // Load and display chat history
-      const messagesContainer = document.getElementById('chatMessages');
-      const savedMessages = state.chatMessages.group;
-      savedMessages.forEach(msg => {
+    function openChat(chatId) {
+      state.currentChat = chatId;
+      const chatList = document.getElementById('chatList');
+      const chatMessages = document.getElementById('chatMessages');
+      const chatInputContainer = document.getElementById('chatInputContainer');
+      if (chatList) chatList.style.display = 'none';
+      if (chatMessages) chatMessages.style.display = 'flex';
+      if (chatInputContainer) chatInputContainer.style.display = 'flex';
+      state.unreadCounts[chatId] = 0;
+      updateChatList();
+      renderChatMessages();
+      const chatInput = document.getElementById('chatInput');
+      if (chatInput) chatInput.focus();
+      document.getElementById('sendBtn').onclick = sendChatMessage;
+      if (chatInput) {
+        chatInput.onkeypress = (e) => {
+          if (e.key === 'Enter') sendChatMessage();
+        };
+      }
+    }
+
+    function renderChatMessages() {
+      const chatMessagesEl = document.getElementById('chatMessages');
+      if (!chatMessagesEl) return;
+      chatMessagesEl.innerHTML = '';
+      const messages = state.chatMessages[state.currentChat] || [];
+      messages.forEach(msg => {
+        const text = typeof msg.text === 'string' ? msg.text : '[No message]';
+        const sender = typeof msg.sender === 'string' ? msg.sender : 'unknown';
+        const time = msg.timestamp
+          ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : '--:--';
         const messageEl = document.createElement('div');
-        messageEl.className = `message ${msg.sender === state.DRIVER_ID ? 'sent' : 'received'}`;
-
-        const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
+        messageEl.className = `message ${sender === state.DRIVER_ID ? 'sent' : 'received'}`;
         messageEl.innerHTML = `
-          ${msg.sender !== state.DRIVER_ID ? `<div class="message-sender">${msg.sender}</div>` : ''}
-          <div>${msg.text}</div>
-          <div class="message-time">${time}</div>
+          ${text}
+          <div class="message-info">
+            <span>${sender}</span>
+            <span>${time}</span>
+          </div>
         `;
-        messagesContainer.appendChild(messageEl);
+        chatMessagesEl.appendChild(messageEl);
       });
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-      // Event listeners for sending messages
-      document.getElementById('sendBtn').addEventListener('click', sendChatMessage);
-      document.getElementById('messageInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendChatMessage();
-      });
+      chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
     }
 
     function sendChatMessage() {
-      const input = document.getElementById('messageInput');
+      const input = document.getElementById('chatInput');
       const text = input?.value.trim();
       if (!text || !state.client) return;
-
-      const payload = {
-        sender: state.DRIVER_ID,
-        text: text,
-        timestamp: Date.now()
-      };
-
+      const payload = { sender: state.DRIVER_ID, text, timestamp: Date.now() };
       state.client.publish('chat/group', JSON.stringify(payload));
-
-      // Add to UI immediately as 'sent'
-      addMessageToChatUI(state.DRIVER_ID, text, Date.now(), true);
-
-      // Add to state and save
-      if (!state.chatMessages.group) state.chatMessages.group = [];
-      state.chatMessages.group.push({ sender: state.DRIVER_ID, text, timestamp: Date.now(), isSent: true });
-      if (state.chatMessages.group.length > 50) state.chatMessages.group = state.chatMessages.group.slice(-50);
-      localStorage.setItem(`chat_group_${state.DRIVER_ID}`, JSON.stringify(state.chatMessages.group));
-
+      addMessage('group', state.DRIVER_ID, text);
       input.value = '';
-    }
-
-    function addMessageToChatUI(sender, text, timestamp, isSent) {
-      const messagesContainer = document.getElementById('chatMessages');
-      if (!messagesContainer) return; // If chat view is not active
-
-      const messageEl = document.createElement('div');
-      messageEl.className = `message ${isSent ? 'sent' : 'received'}`;
-
-      const timeStr = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      messageEl.innerHTML = `
-        ${!isSent ? `<div class="message-sender">${sender}</div>` : ''}
-        <div>${text}</div>
-        <div class="message-time">${timeStr}</div>
-      `;
-
-      messagesContainer.appendChild(messageEl);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight; // Auto-scroll
     }
 
     function addMessage(chatId, sender, text, timestamp = Date.now()) {
@@ -1121,16 +1106,8 @@
         state.chatMessages[chatId] = state.chatMessages[chatId].slice(-50);
       }
       localStorage.setItem(`chat_group_${state.DRIVER_ID}`, JSON.stringify(state.chatMessages.group));
-
-      // Update UI if currently viewing this chat
       if (state.isMenuOpen && state.currentView === 'chat' && state.currentChat === chatId) {
-        addMessageToChatUI(sender, text, timestamp, sender === state.DRIVER_ID);
-      }
-
-      // Update unread counts if not viewing
-      if (!state.isMenuOpen || state.currentView !== 'chat' || state.currentChat !== chatId) {
-        state.unreadCounts[chatId] = (state.unreadCounts[chatId] || 0) + 1;
-        // Update chat list UI here if needed
+        renderChatMessages();
       }
     }
 
@@ -1140,6 +1117,9 @@
           <div class="settings-label">Driver ID</div>
           <input type="text" id="driverIdInput" class="settings-input" value="${state.DRIVER_ID}">
           <button class="settings-btn" id="saveDriverIdBtn">Save Driver ID</button>
+          <div class="settings-info">
+            Your current ID: <span id="currentDriverId">${state.DRIVER_ID}</span>
+          </div>
         </div>
         <div class="settings-group">
           <div class="settings-label">Max Job Radius (km)</div>
@@ -1270,7 +1250,6 @@
         state.client.subscribe("drivers/+/status");
         state.client.subscribe("chat/group");
         state.client.subscribe(`chat/private/${state.DRIVER_ID}/+`);
-        // ✅ PUBLISH STATUS TO TABLET ON CONNECT
         state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify({
           driver: state.DRIVER_ID,
           status: state.driverPresence,
@@ -1290,15 +1269,16 @@
             return;
           }
 
-          // NEW JOBS
+          // NEW JOBS (✅ FIXED: Call showJobPanel here)
           if (topic.startsWith("pubs/requests/")) {
             if (!state.seenJobIds.has(data.job)) {
               state.seenJobIds.add(data.job);
               state.pendingJobs.push({ ...data, receivedAt: Date.now() });
               localStorage.setItem(`pending_jobs_${state.DRIVER_ID}`, JSON.stringify(state.pendingJobs));
               addJobToHistory(data, 'queued');
+              // ✅ FIXED: Check conditions and show panel IMMEDIATELY if eligible
               if (state.driverPresence === 'available' && !state.isJobActive) {
-                showJobPanel(data);
+                showJobPanel(data); // <--- THIS WAS MISSING
               }
             }
           }
@@ -1313,15 +1293,6 @@
               setTimeout(() => { state.els.jobWonModal.style.display = 'none'; }, 3000);
               if (!state.isMenuOpen) state.els.menuBtn.click();
               else renderView('currentJob');
-            } else if (data.result === "lost") {
-              state.els.status.innerHTML = '<span class="gps-source gps-network"></span>❌ Bid lost. Better luck next time!';
-              updateJobStatus(jobId, 'lost');
-            } else if (data.result === "too_late") {
-              state.els.status.innerHTML = '<span class="gps-source gps-poor"></span>⏰ Bid too late - job expired';
-              updateJobStatus(jobId, 'expired');
-            } else if (data.result === "job_timeout") {
-              state.els.status.innerHTML = '<span class="gps-source gps-poor"></span>⏰ Job expired - no valid bids received';
-              updateJobStatus(jobId, 'expired');
             }
           }
 
@@ -1338,23 +1309,55 @@
             }
           }
 
-          // DRIVER LOCATIONS & STATUS (for chat list)
+          // DRIVER LOCATIONS & STATUS
           if (topic.startsWith("drivers/") && topic.endsWith("/location")) {
             const driverId = topic.split('/')[1];
             if (driverId === state.DRIVER_ID) return;
             state.otherDrivers[driverId] = data;
             state.driverStatus[driverId] = data.ts;
+            updateChatList();
           }
           if (topic.startsWith("drivers/") && topic.endsWith("/status")) {
             const driverId = topic.split('/')[1];
             if (driverId === state.DRIVER_ID) return;
             state.driverStatus[driverId] = data.ts;
+            updateChatList();
           }
 
         } catch (e) {
           console.error("MQTT error:", e);
         }
       });
+    }
+
+    function handlePassengerPreset(data) {
+      const msg = 
+        data.presetType === "where_are_you" ? "Passenger asks: Where are you?" :
+        data.presetType === "cancel_ride" ? "Passenger wants to cancel the ride." :
+        data.presetType === "call_driver" ? "Passenger is trying to call you." :
+        `Passenger message: ${data.presetType}`;
+      speak(msg);
+      showPassengerPopup(msg, data);
+    }
+
+    function showPassengerPopup(msg, data) {
+      document.getElementById('passengerPopupMsg').textContent = msg;
+      document.getElementById('passengerPopup').style.display = 'block';
+      setTimeout(() => { document.getElementById('passengerPopup').style.display = 'none'; }, 15000);
+      document.getElementById('presetReply1').onclick = () => sendPresetReply('on_my_way', data);
+      document.getElementById('presetReply2').onclick = () => sendPresetReply('arrived', data);
+    }
+
+    function sendPresetReply(type, data) {
+      if (!state.client) return;
+      state.client.publish('server/preset_replies', JSON.stringify({
+        type: 'driver_preset_reply',
+        replyType: type,
+        driverId: state.DRIVER_ID,
+        jobId: data?.jobId,
+        timestamp: Date.now()
+      }));
+      document.getElementById('passengerPopup').style.display = 'none';
     }
 
     async function requestFCMToken() {
@@ -1379,6 +1382,16 @@
         fcmToken: state.fcmToken,
         ts: Date.now()
       }));
+    }
+
+    function updateJobStatus(jobId, status) {
+      const jobIndex = state.driverJobs.findIndex(j => j.job === jobId);
+      if (jobIndex >= 0) {
+        state.driverJobs[jobIndex].status = status;
+        localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
+        if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
+        if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
+      }
     }
 
     // ===== INITIALIZATION =====
@@ -1431,7 +1444,6 @@
           document.getElementById('statusCaption').className = `status-${state.driverPresence}`;
           document.getElementById('statusCaption').innerHTML = `<span class="status-dot"></span> ${state.driverPresence.charAt(0).toUpperCase() + state.driverPresence.slice(1)}`;
           state.els.statusDropdown.style.display = 'none';
-          // ✅ PUBLISH NEW STATUS TO TABLET
           if (state.client?.connected) {
             state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify({
               driver: state.DRIVER_ID,
@@ -1447,13 +1459,9 @@
         document.getElementById('statusCaption').className = 'status-offline';
         document.getElementById('statusCaption').innerHTML = '<span class="status-dot"></span> Offline';
         state.els.statusDropdown.style.display = 'none';
-        // ✅ PUBLISH OFFLINE STATUS TO TABLET
-        if (state.client?.connected) {
-          state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify({
-            driver: state.DRIVER_ID,
-            status: 'offline',
-            ts: Date.now()
-          }));
+        if (state.gpsWatchId) {
+          navigator.geolocation.clearWatch(state.gpsWatchId);
+          state.gpsWatchId = null;
         }
       });
 
