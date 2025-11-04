@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.3</title>
+  <title>Black Cab Unite v8.4</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -521,7 +521,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.3</div>
+      <div id="appTitle">Black Cab Unite v8.4</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -606,7 +606,7 @@
       }
     });
 
-    // ===== CENTRALIZED STATE (v8-style) =====
+    // ===== CENTRALIZED STATE =====
     const state = {
       DRIVER_ID: localStorage.getItem('driver_id'),
       driverPresence: localStorage.getItem('driver_presence') || 'available',
@@ -623,7 +623,7 @@
       isSpeaking: false,
       voiceAttemptCount: 0,
       maxRadius: parseFloat(localStorage.getItem('max_radius_km') || '10'),
-      seenJobIds: new Set(),
+      seenJobIds: new Set(), // ✅ Now properly initialized
       driverJobs: JSON.parse(localStorage.getItem(`driver_jobs_${localStorage.getItem('driver_id')}`)) || [],
       pendingJobs: JSON.parse(localStorage.getItem(`pending_jobs_${localStorage.getItem('driver_id')}`)) || [],
       chatMessages: { group: JSON.parse(localStorage.getItem(`chat_group_${localStorage.getItem('driver_id')}`)) || [] },
@@ -760,8 +760,12 @@
     }
 
     function showJobPanel(job) {
-      if (state.seenJobIds.has(job.job)) return;
-      state.seenJobIds.add(job.job);
+      // ✅ CRITICAL FIX: Use global state.seenJobIds to prevent duplicates
+      if (state.seenJobIds.has(job.job)) {
+        console.log("⏭️ Skipping duplicate job:", job.job);
+        return;
+      }
+      state.seenJobIds.add(job.job); // ✅ Mark as seen immediately
       state.isJobActive = true;
       state.currentJob = job;
       state.els.jobPanel.style.display = 'block';
@@ -834,6 +838,7 @@
           <div class="job-detail"><div class="job-label">Job ID</div><div class="job-value">${allocated.job}</div></div>
           <div class="job-detail"><div class="job-label">Customer Name</div><div class="job-value">${allocated.customerName}</div></div>
           <div class="job-detail"><div class="job-label">Customer Phone</div><div class="job-value">${allocated.customerPhone}</div></div>
+          <div class="job-detail"><div class="job-label">Pickup Location</div><div class="job-value">${allocated.lat.toFixed(5)}, ${allocated.lng.toFixed(5)}</div></div>
           <div class="job-detail"><div class="job-label">Status</div><div class="job-value"><span class="job-status status-allocated">ALLOCATED</span></div></div>
         </div>
         <button class="settings-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${allocated.lat},${allocated.lng}', '_blank')">🧭 Navigate to Pickup</button>
@@ -858,7 +863,6 @@
         const dateStr = date.toLocaleDateString();
 
         let actionButtons = '';
-        // ✅ ADDED: "Bid Now" button for queued jobs
         if (job.status === 'queued') {
           actionButtons = `
             <div style="display:flex; gap:8px; margin-top:12px;">
@@ -877,6 +881,7 @@
           <div class="job-pub">Pub: ${job.pubName}</div>
           <div class="job-phone">👤 ${job.customerName || '—'}</div>
           <div class="job-phone">📞 ${job.customerPhone}</div>
+          <div class="job-phone">📍 ${job.lat?.toFixed(5) || 'N/A'}, ${job.lng?.toFixed(5) || 'N/A'}</div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
             <span class="job-status status-${job.status}">${job.status.toUpperCase()}</span>
             <span style="font-size:12px; color:#666;">${dateStr} ${timeStr}</span>
@@ -892,9 +897,10 @@
         btn.addEventListener('click', (e) => {
           const action = e.target.dataset.action;
           const jobId = e.target.dataset.jobid;
-          const job = state.driverJobs.find(j => j.job === jobId && j.status === 'queued');
+          const job = state.pendingJobs.find(j => j.job === jobId) ||
+                      state.driverJobs.find(j => j.job === jobId && j.status === 'queued');
           if (!job) {
-            alert("Job no longer available or status changed.");
+            alert("Job no longer available.");
             return;
           }
           if (action === 'view') {
@@ -913,7 +919,7 @@
       attachSwipeToDelete();
     }
 
-    // ✅ SWIPE-TO-DELETE FUNCTION (Similar to v7.0 implementation)
+    // ✅ SWIPE-TO-DELETE FUNCTION
     function attachSwipeToDelete() {
       const items = document.querySelectorAll('#jobHistoryContent .job-item');
       items.forEach(item => {
@@ -1097,16 +1103,11 @@
     function addMessage(chatId, sender, text, timestamp = Date.now()) {
       if (!state.chatMessages[chatId]) state.chatMessages[chatId] = [];
       state.chatMessages[chatId].push({ sender, text, timestamp });
-      if (state.chatMessages[chatId].length > 50) {
-        state.chatMessages[chatId] = state.chatMessages[chatId].slice(-50);
-      }
+      if (state.chatMessages[chatId].length > 50) state.chatMessages[chatId] = state.chatMessages[chatId].slice(-50);
       localStorage.setItem(`chat_group_${state.DRIVER_ID}`, JSON.stringify(state.chatMessages.group));
-      if (state.isMenuOpen && state.currentView === 'chat' && state.currentChat === chatId) {
-        renderChatMessages();
-      }
+      if (state.isMenuOpen && state.currentView === 'chat' && state.currentChat === chatId) renderChatMessages();
       if (!state.isMenuOpen || state.currentView !== 'chat' || state.currentChat !== chatId) {
         state.unreadCounts[chatId] = (state.unreadCounts[chatId] || 0) + 1;
-        updateChatList();
       }
     }
 
@@ -1242,7 +1243,7 @@
       state.client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", { reconnectPeriod: 1000 });
       state.client.on('connect', () => {
         state.els.status.textContent = `✅ Connected as ${state.DRIVER_ID}`;
-        state.client.subscribe("pubs/requests/+");
+        state.client.subscribe("pubs/requests/+"); // ✅ Subscribe to new jobs
         state.client.subscribe(`jobs/+/result/${state.DRIVER_ID}`);
         state.client.subscribe(`drivers/${state.DRIVER_ID}/presets`);
         state.client.subscribe("drivers/+/location");
@@ -1268,16 +1269,20 @@
             return;
           }
 
-          // NEW JOBS
+          // ✅ NEW JOBS - FIXED: Use global seenJobIds for deduplication
           if (topic.startsWith("pubs/requests/")) {
+            // ✅ CRITICAL FIX: Check global state.seenJobIds
             if (!state.seenJobIds.has(data.job)) {
-              state.seenJobIds.add(data.job);
+              state.seenJobIds.add(data.job); // ✅ Mark as seen
               state.pendingJobs.push({ ...data, receivedAt: Date.now() });
               localStorage.setItem(`pending_jobs_${state.DRIVER_ID}`, JSON.stringify(state.pendingJobs));
               addJobToHistory(data, 'queued');
+              // ✅ Show panel if available and no active job
               if (state.driverPresence === 'available' && !state.isJobActive) {
-                showJobPanel(data);
+                showJobPanel(data); // ✅ This should now work reliably
               }
+            } else {
+              console.log("⏭️ Duplicate job skipped:", data.job);
             }
           }
 
@@ -1402,6 +1407,7 @@
         localStorage.setItem('driver_id', state.DRIVER_ID);
         state.driverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${state.DRIVER_ID}`)) || [];
         state.pendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${state.DRIVER_ID}`)) || [];
+        // ✅ Initialize seenJobIds from saved jobs
         state.seenJobIds = new Set([...state.driverJobs.map(j => j.job), ...state.pendingJobs.map(p => p.job)]);
       }
 
