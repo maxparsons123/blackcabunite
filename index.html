@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.8</title>
+  <title>Black Cab Unite v8.9</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -521,7 +521,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.8</div>
+      <div id="appTitle">Black Cab Unite v8.9</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -670,7 +670,6 @@
       localStorage.setItem(key, JSON.stringify(value));
     }
 
-    // ✅ FIXED: Helper functions defined BEFORE main functions
     function showMicIndicator() {
       state.els.micIndicator.style.display = 'block';
     }
@@ -727,7 +726,7 @@
         state.speechRecognition = null;
       };
       state.speechRecognition.onerror = () => { state.speechRecognition = null; };
-      state.speechRecognition.onend = () => { state.speechRecognition = null; hideMicIndicator(); };
+      state.speechRecognition.onend = () => { state.speechRecognition = null; hideMicIndicator(); }; // ✅ Uses defined function
       try { state.speechRecognition.start(); } catch (e) {}
     }
 
@@ -841,7 +840,7 @@
         state.driverJobs.unshift(job);
         if (state.driverJobs.length > 50) state.driverJobs = state.driverJobs.slice(0, 50);
       }
-      saveToStorage(`driver_jobs_${state.DRIVER_ID}`, state.driverJobs);
+      localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
       if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
       if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
     }
@@ -987,7 +986,7 @@
                 // Remove from state array
                 state.driverJobs = state.driverJobs.filter(job => job.job !== jobId);
                 // Update local storage
-                saveToStorage(`driver_jobs_${state.DRIVER_ID}`, state.driverJobs);
+                localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
                 // Re-render the list to reflect the change
                 if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
               }, 300); // Match the transition duration
@@ -1126,7 +1125,7 @@
       if (state.chatMessages[chatId].length > 50) {
         state.chatMessages[chatId] = state.chatMessages[chatId].slice(-50);
       }
-      saveToStorage(`chat_group_${state.DRIVER_ID}`, state.chatMessages.group);
+      localStorage.setItem(`chat_group_${state.DRIVER_ID}`, JSON.stringify(state.chatMessages.group));
       if (state.isMenuOpen && state.currentView === 'chat' && state.currentChat === chatId) {
         renderChatMessages();
       }
@@ -1157,7 +1156,7 @@
       document.getElementById('saveDriverIdBtn').addEventListener('click', () => {
         const newId = document.getElementById('driverIdInput').value.trim();
         if (newId && validateDriverId(newId)) {
-          saveToStorage('driver_id', newId);
+          localStorage.setItem('driver_id', newId);
           state.DRIVER_ID = newId;
           if (state.client) {
             state.client.end();
@@ -1171,14 +1170,14 @@
         const radius = parseFloat(val);
         if (!isNaN(radius) && radius >= 1 && radius <= 50) {
           state.maxRadius = radius;
-          saveToStorage('max_radius_km', radius.toString());
+          localStorage.setItem('max_radius_km', radius.toString());
           state.els.status.innerHTML = `✅ Max radius set to ${radius} km`;
         }
       });
       document.getElementById('clearJobsBtn').addEventListener('click', () => {
         if (confirm("Clear all job history?")) {
           state.driverJobs = [];
-          saveToStorage(`driver_jobs_${state.DRIVER_ID}`, []);
+          localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, '[]');
           if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
           if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
           state.els.status.innerHTML = '<span class="gps-source gps-network"></span>✅ Job history cleared';
@@ -1262,10 +1261,11 @@
       }));
     }
 
-    // ===== MQTT & FCM =====
+    // ===== MQTT & FCM (WITH LOGS) =====
     function connectMQTT() {
       state.client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", { reconnectPeriod: 1000 });
       state.client.on('connect', () => {
+        console.log("✅ MQTT Connected as:", state.DRIVER_ID); // ✅ LOG: Connection
         state.els.status.textContent = `✅ Connected as ${state.DRIVER_ID}`;
         state.client.subscribe("pubs/requests/+");
         state.client.subscribe(`jobs/+/result/${state.DRIVER_ID}`);
@@ -1274,11 +1274,10 @@
         state.client.subscribe("drivers/+/status");
         state.client.subscribe("chat/group");
         state.client.subscribe(`chat/private/${state.DRIVER_ID}/+`);
-        state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify({
-          driver: state.DRIVER_ID,
-          status: state.driverPresence,
-          ts: Date.now()
-        }));
+        // ✅ LOG: Publish initial status
+        const statusPayload = { driver: state.DRIVER_ID, status: state.driverPresence, ts: Date.now() };
+        state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify(statusPayload));
+        console.log("📤 Published initial driver status:", statusPayload);
         if (state.fcmToken) publishFcmToken();
         if (state.driverCoords) publishLocationThrottled(state.driverCoords);
       });
@@ -1286,6 +1285,9 @@
       state.client.on('message', (topic, msg) => {
         try {
           const data = JSON.parse(msg.toString());
+          
+          // ✅ LOG: All MQTT messages
+          console.log("📡 MQTT received:", topic, data);
 
           // PASSENGER PRESETS
           if (topic === `drivers/${state.DRIVER_ID}/presets`) {
@@ -1358,6 +1360,7 @@
             const driverId = topic.split('/')[1];
             if (driverId === state.DRIVER_ID) return;
             state.driverStatus[driverId] = data.ts;
+            console.log(`📊 Driver ${driverId} status updated:`, data.status); // ✅ LOG: Driver status
             updateChatList();
           }
 
@@ -1368,13 +1371,13 @@
     }
 
     function handlePassengerPreset(data) {
-      const msg = 
+      const msgText = 
         data.presetType === "where_are_you" ? "Passenger asks: Where are you?" :
         data.presetType === "cancel_ride" ? "Passenger wants to cancel the ride." :
         data.presetType === "call_driver" ? "Passenger is trying to call you." :
         `Passenger message: ${data.presetType}`;
-      speakFeedback(msg);
-      showPassengerPopup(msg, data);
+      speakFeedback(msgText);
+      showPassengerPopup(msgText, data);
     }
 
     function showPassengerPopup(msg, data) {
@@ -1394,38 +1397,49 @@
         jobId: data?.jobId,
         timestamp: Date.now()
       }));
+      console.log("📤 Sent preset reply:", type, "for job", data?.jobId); // ✅ LOG: Preset reply sent
       document.getElementById('passengerPopup').style.display = 'none';
     }
 
+    // ✅ LOGGED: FCM Token Flow
     async function requestFCMToken() {
       try {
+        console.log("🔐 Requesting FCM token..."); // ✅ LOG: FCM request initiated
         const perm = await Notification.requestPermission();
-        if (perm !== 'granted') return;
+        if (perm !== 'granted') {
+          console.log("❌ FCM Permission denied by user."); // ✅ LOG: Permission denied
+          return null;
+        }
+        console.log("✅ FCM Permission granted. Registering service worker..."); // ✅ LOG: Permission OK
         const reg = await navigator.serviceWorker.register('/blackcabunite/firebase-messaging-sw.js', { scope: '/blackcabunite/' });
+        console.log("✅ Service worker registered for FCM."); // ✅ LOG: SW registered
         state.fcmToken = await messaging.getToken({
           vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
           serviceWorkerRegistration: reg
         });
+        console.log("🔑 Acquired FCM token:", state.fcmToken ? state.fcmToken.substring(0, 12) + '...' : 'null'); // ✅ LOG: Token acquired
         if (state.fcmToken) publishFcmToken();
+        return state.fcmToken;
       } catch (err) {
-        console.error('FCM error:', err);
+        console.error('❌ FCM setup failed:', err); // ✅ LOG: FCM error
       }
     }
 
     function publishFcmToken() {
-      if (!state.client?.connected || !state.fcmToken || !state.DRIVER_ID) return;
-      state.client.publish(`drivers/${state.DRIVER_ID}/fcm`, JSON.stringify({
-        driverId: state.DRIVER_ID,
-        fcmToken: state.fcmToken,
-        ts: Date.now()
-      }));
+      if (!state.client?.connected || !state.fcmToken || !state.DRIVER_ID) {
+        console.log("⚠️ Cannot publish FCM token - MQTT not connected or missing data."); // ✅ LOG: Can't publish
+        return;
+      }
+      const payload = { driverId: state.DRIVER_ID, fcmToken: state.fcmToken, ts: Date.now() };
+      state.client.publish(`drivers/${state.DRIVER_ID}/fcm`, JSON.stringify(payload));
+      console.log("📤 Published FCM token via MQTT for driver:", state.DRIVER_ID); // ✅ LOG: Token published
     }
 
     function updateJobStatus(jobId, status) {
       const jobIndex = state.driverJobs.findIndex(j => j.job === jobId);
       if (jobIndex >= 0) {
         state.driverJobs[jobIndex].status = status;
-        saveToStorage(`driver_jobs_${state.DRIVER_ID}`, state.driverJobs);
+        localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
         if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
         if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
       }
@@ -1469,7 +1483,7 @@
         });
       });
 
-      // Job Actions
+      // Job Actions (Accept/Reject Buttons)
       state.els.acceptBtn.addEventListener('click', () => respondToJob(true));
       state.els.rejectBtn.addEventListener('click', () => respondToJob(false));
 
@@ -1480,21 +1494,22 @@
       });
       document.querySelectorAll('.status-option').forEach(opt => {
         opt.addEventListener('click', () => {
-          state.driverPresence = opt.dataset.status;
-          localStorage.setItem('driver_presence', state.driverPresence);
-          document.getElementById('statusCaption').className = `status-${state.driverPresence}`;
-          document.getElementById('statusCaption').innerHTML = `<span class="status-dot"></span> ${state.driverPresence.charAt(0).toUpperCase() + state.driverPresence.slice(1)}`;
+          const newStatus = opt.dataset.status;
+          console.log(`🔄 Driver status changing from '${state.driverPresence}' to '${newStatus}'`); // ✅ LOG: Status change
+          state.driverPresence = newStatus;
+          localStorage.setItem('driver_presence', newStatus);
+          document.getElementById('statusCaption').className = `status-${newStatus}`;
+          document.getElementById('statusCaption').innerHTML = `<span class="status-dot"></span> ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`;
           state.els.statusDropdown.style.display = 'none';
           if (state.client?.connected) {
-            state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify({
-              driver: state.DRIVER_ID,
-              status: state.driverPresence,
-              ts: Date.now()
-            }));
+            const statusPayload = { driver: state.DRIVER_ID, status: newStatus, ts: Date.now() };
+            state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify(statusPayload));
+            console.log("📤 Published status change via MQTT:", statusPayload); // ✅ LOG: Status published
           }
         });
       });
       document.getElementById('logOffBtn').addEventListener('click', () => {
+        console.log("🚪 Driver logging off (setting status to offline)"); // ✅ LOG: Log off
         state.driverPresence = 'offline';
         localStorage.setItem('driver_presence', 'offline');
         document.getElementById('statusCaption').className = 'status-offline';
@@ -1517,7 +1532,7 @@
       });
 
       initMapImmediately();
-      if ('serviceWorker' in navigator) requestFCMToken();
+      if ('serviceWorker' in navigator) requestFCMToken(); // ✅ Will log token flow
     }
 
     if (document.readyState === 'loading') {
