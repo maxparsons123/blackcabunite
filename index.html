@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.7</title>
+  <title>Black Cab Unite v8.8</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -521,7 +521,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.7</div>
+      <div id="appTitle">Black Cab Unite v8.8</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -606,7 +606,7 @@
       }
     });
 
-    // ===== CENTRALIZED STATE =====
+    // ===== CENTRALIZED STATE (v8-Style) =====
     const state = {
       DRIVER_ID: localStorage.getItem('driver_id'),
       driverPresence: localStorage.getItem('driver_presence') || 'available',
@@ -659,6 +659,7 @@
     const savedDriverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${state.DRIVER_ID}`)) || [];
     const savedPendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${state.DRIVER_ID}`)) || [];
     state.seenJobIds = new Set([...savedDriverJobs.map(j => j.job), ...savedPendingJobs.map(p => p.job)]);
+    console.log("✅ Initial seenJobIds:", [...state.seenJobIds]);
 
     // ===== VALIDATION =====
     function validateDriverId(id) {
@@ -725,6 +726,7 @@
     function promptForVoiceResponse() {
       if (state.isSpeaking || !state.isJobActive) return;
       if (state.voiceAttemptCount === 0) {
+        // ✅ Start mic IMMEDIATELY on first attempt (no unnecessary delay)
         showMicIndicator();
         setTimeout(startVoiceListener, 300); // Small buffer for UI update
       } else if (state.voiceAttemptCount < 3) {
@@ -767,10 +769,11 @@
     function showJobPanel(job) {
       // ✅ CRITICAL FIX: Use the CORRECT state.seenJobIds set
       if (state.seenJobIds.has(job.job)) {
-        console.log("⏭️ Skipping duplicate job (already seen):", job.job);
+        console.log("⏭️ Skipping duplicate job (already seen in showJobPanel):", job.job);
         return;
       }
       state.seenJobIds.add(job.job); // Mark as seen immediately
+      console.log("🆕 Showing job panel for:", job.job);
       state.isJobActive = true;
       state.currentJob = job;
       state.els.jobPanel.style.display = 'block';
@@ -1014,6 +1017,7 @@
         item.addEventListener('selectstart', e => e.preventDefault());
       });
     }
+
 
     function renderChatView() {
       state.els.menuContent.innerHTML = `
@@ -1270,6 +1274,9 @@
       state.client.on('message', (topic, msg) => {
         try {
           const data = JSON.parse(msg.toString());
+          
+          // ✅ LOG ALL MQTT MESSAGES
+          console.log("📡 MQTT received:", topic, data);
 
           // PASSENGER PRESETS
           if (topic === `drivers/${state.DRIVER_ID}/presets`) {
@@ -1292,7 +1299,7 @@
             localStorage.setItem(`pending_jobs_${state.DRIVER_ID}`, JSON.stringify(state.pendingJobs));
             addJobToHistory(data, 'queued');
             if (state.driverPresence === 'available' && !state.isJobActive) {
-              showJobPanel(data);
+              showJobPanel(data); // ✅ This should now work reliably
             } else if (state.driverPresence === 'busy') {
               speakFeedback("New job queued. You are set to busy.");
               const btn = document.getElementById('menuBtn');
@@ -1385,15 +1392,20 @@
     async function requestFCMToken() {
       try {
         const perm = await Notification.requestPermission();
-        if (perm !== 'granted') return;
+        if (perm !== 'granted') return null;
         const reg = await navigator.serviceWorker.register('/blackcabunite/firebase-messaging-sw.js', { scope: '/blackcabunite/' });
         state.fcmToken = await messaging.getToken({
           vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
           serviceWorkerRegistration: reg
         });
-        if (state.fcmToken) publishFcmToken();
+        if (state.fcmToken) {
+          publishFcmToken();
+          // ✅ LOG FCM TOKEN PUBLICATION
+          console.log("📤 Published FCM token via MQTT for driver:", state.DRIVER_ID);
+        }
+        return state.fcmToken;
       } catch (err) {
-        console.error('FCM error:', err);
+        console.error('❌ FCM setup failed:', err);
       }
     }
 
