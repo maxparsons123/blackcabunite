@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.9</title>
+  <title>Black Cab Unite v8.8</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -521,7 +521,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.9</div>
+      <div id="appTitle">Black Cab Unite v8.8</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -666,6 +666,20 @@
       return id && /^[a-zA-Z0-9_-]+$/.test(id);
     }
 
+    // ===== UI HELPERS (DEFINED FIRST) =====
+    function showMicIndicator() {
+      state.els.micIndicator.style.display = 'block';
+    }
+    function hideMicIndicator() { // ✅ DEFINED
+      state.els.micIndicator.style.display = 'none';
+    }
+    function updateChatList() { // ✅ DEFINED
+      // Placeholder function - implement logic if needed for chat contacts
+      // Example:
+      // const chatList = document.getElementById('chatList');
+      // chatList.innerHTML = Object.keys(state.otherDrivers).map(id => `<div>${id}</div>`).join('');
+    }
+
     // ===== TTS / STT =====
     function speakFeedback(message, onDone = null) {
       if (!('speechSynthesis' in window)) {
@@ -710,12 +724,12 @@
         state.speechRecognition = null;
       };
       state.speechRecognition.onerror = () => { state.speechRecognition = null; };
-      state.speechRecognition.onend = () => { state.speechRecognition = null; hideMicIndicator(); };
+      state.speechRecognition.onend = () => { state.speechRecognition = null; hideMicIndicator(); }; // ✅ Uses defined function
       try { state.speechRecognition.start(); } catch (e) {}
     }
 
     function stopVoiceListener() {
-      hideMicIndicator();
+      hideMicIndicator(); // ✅ Uses defined function
       if (state.speechRecognition) {
         state.speechRecognition.abort();
         state.speechRecognition = null;
@@ -726,11 +740,11 @@
     function promptForVoiceResponse() {
       if (state.isSpeaking || !state.isJobActive) return;
       if (state.voiceAttemptCount === 0) {
-        showMicIndicator();
+        showMicIndicator(); // ✅ Uses defined function
         setTimeout(startVoiceListener, 300); // Small buffer for UI update
       } else if (state.voiceAttemptCount < 3) {
         speakFeedback("Did not hear you. Please say ‘accept’ or ‘reject’.", () => {
-          showMicIndicator();
+          showMicIndicator(); // ✅ Uses defined function
           startVoiceListener();
         });
       } else {
@@ -742,7 +756,7 @@
             );
             utterance.onend = () => {
               state.voiceAttemptCount = 0;
-              showMicIndicator();
+              showMicIndicator(); // ✅ Uses defined function
               setTimeout(promptForVoiceResponse, 300);
             };
             speechSynthesis.speak(utterance);
@@ -755,7 +769,7 @@
     function cleanupJob() {
       if (state.jobTimerInterval) clearInterval(state.jobTimerInterval);
       state.els.jobPanel.style.display = 'none';
-      stopVoiceListener();
+      stopVoiceListener(); // ✅ Uses defined function
       speechSynthesis.cancel();
       state.currentJob = null;
       state.isJobActive = false;
@@ -765,9 +779,13 @@
       }
     }
 
-    // ✅ FIXED: Removed redundant seenJobIds check INSIDE showJobPanel
     function showJobPanel(job) {
-      // NO check against state.seenJobIds here - MQTT handler already did this
+      // ✅ CRITICAL FIX: Use the CORRECT state.seenJobIds set
+      if (state.seenJobIds.has(job.job)) {
+        console.log("⏭️ Skipping duplicate job (already seen):", job.job);
+        return;
+      }
+      state.seenJobIds.add(job.job); // Mark as seen immediately
       state.isJobActive = true;
       state.currentJob = job;
       state.els.jobPanel.style.display = 'block';
@@ -787,14 +805,14 @@
       }, 1000);
       speakFeedback(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}`, () => {
         state.voiceAttemptCount = 0;
-        promptForVoiceResponse();
+        promptForVoiceResponse(); // ✅ Uses defined function
       });
     }
 
     function respondToJob(accepted, job = state.currentJob) {
       if (!job || !state.client) return;
       if (state.jobTimerInterval) clearInterval(state.jobTimerInterval);
-      stopVoiceListener();
+      stopVoiceListener(); // ✅ Uses defined function
       speechSynthesis.cancel();
       const payload = {
         job: job.job,
@@ -1055,7 +1073,7 @@
       if (chatMessages) chatMessages.style.display = 'flex';
       if (chatInputContainer) chatInputContainer.style.display = 'flex';
       state.unreadCounts[chatId] = 0;
-      updateChatList();
+      updateChatList(); // ✅ Uses defined function
       renderChatMessages();
       const chatInput = document.getElementById('chatInput');
       if (chatInput) chatInput.focus();
@@ -1268,9 +1286,6 @@
       state.client.on('message', (topic, msg) => {
         try {
           const data = JSON.parse(msg.toString());
-          
-          // ✅ LOG ALL MQTT MESSAGES
-          console.log("📡 MQTT received:", topic, data);
 
           // PASSENGER PRESETS
           if (topic === `drivers/${state.DRIVER_ID}/presets`) {
@@ -1338,13 +1353,13 @@
             if (driverId === state.DRIVER_ID) return;
             state.otherDrivers[driverId] = data;
             state.driverStatus[driverId] = data.ts;
-            updateChatList();
+            updateChatList(); // ✅ Uses defined function
           }
           if (topic.startsWith("drivers/") && topic.endsWith("/status")) {
             const driverId = topic.split('/')[1];
             if (driverId === state.DRIVER_ID) return;
             state.driverStatus[driverId] = data.ts;
-            updateChatList();
+            updateChatList(); // ✅ Uses defined function
           }
 
         } catch (e) {
@@ -1392,13 +1407,9 @@
           vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
           serviceWorkerRegistration: reg
         });
-        if (state.fcmToken) {
-          publishFcmToken();
-          console.log("📤 Published FCM token via MQTT for driver:", state.DRIVER_ID);
-        }
-        return state.fcmToken;
+        if (state.fcmToken) publishFcmToken();
       } catch (err) {
-        console.error('❌ FCM setup failed:', err);
+        console.error('FCM error:', err);
       }
     }
 
@@ -1459,9 +1470,9 @@
         });
       });
 
-      // Job Actions
-      state.els.acceptBtn.addEventListener('click', () => respondToJob(true));
-      state.els.rejectBtn.addEventListener('click', () => respondToJob(false));
+      // Job Actions (Accept/Reject Buttons)
+      state.els.acceptBtn.addEventListener('click', () => respondToJob(true)); // ✅ Uses defined function
+      state.els.rejectBtn.addEventListener('click', () => respondToJob(false)); // ✅ Uses defined function
 
       // Status Dropdown
       document.getElementById('appTitleContainer').addEventListener('click', (e) => {
