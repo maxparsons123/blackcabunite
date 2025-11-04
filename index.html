@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.7</title>
+  <title>Black Cab Unite v8.8</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -521,7 +521,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.7</div>
+      <div id="appTitle">Black Cab Unite v8.8</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -606,7 +606,7 @@
       }
     });
 
-    // ===== CENTRALIZED STATE =====
+    // ===== CENTRALIZED STATE (v8-style) =====
     const state = {
       DRIVER_ID: localStorage.getItem('driver_id'),
       driverPresence: localStorage.getItem('driver_presence') || 'available',
@@ -623,7 +623,8 @@
       isSpeaking: false,
       voiceAttemptCount: 0,
       maxRadius: parseFloat(localStorage.getItem('max_radius_km') || '10'),
-      // ✅ REMOVED: seenJobIds Set (not needed anymore)
+      // ✅ FIXED: Initialize seenJobIds correctly from saved data
+      seenJobIds: new Set(),
       driverJobs: JSON.parse(localStorage.getItem(`driver_jobs_${localStorage.getItem('driver_id')}`)) || [],
       pendingJobs: JSON.parse(localStorage.getItem(`pending_jobs_${localStorage.getItem('driver_id')}`)) || [],
       chatMessages: { group: JSON.parse(localStorage.getItem(`chat_group_${localStorage.getItem('driver_id')}`)) || [] },
@@ -654,9 +655,32 @@
       }
     };
 
-    // ===== VALIDATION =====
+    // ✅ CRITICAL FIX: Populate seenJobIds from saved jobs on startup
+    const savedDriverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${state.DRIVER_ID}`)) || [];
+    const savedPendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${state.DRIVER_ID}`)) || [];
+    state.seenJobIds = new Set([...savedDriverJobs.map(j => j.job), ...savedPendingJobs.map(p => p.job)]);
+    console.log("✅ Initial seenJobIds:", [...state.seenJobIds]);
+
+    // ===== VALIDATION & HELPERS (DEFINED FIRST) =====
     function validateDriverId(id) {
       return id && /^[a-zA-Z0-9_-]+$/.test(id);
+    }
+
+    function saveToStorage(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    // ✅ FIXED: Helper functions defined BEFORE main functions
+    function showMicIndicator() {
+      state.els.micIndicator.style.display = 'block';
+    }
+    function hideMicIndicator() { // ✅ DEFINED HERE
+      state.els.micIndicator.style.display = 'none';
+    }
+    function updateChatList() { // ✅ DEFINED HERE
+      // Placeholder - implement logic if needed
+      // e.g., update unread badges, online statuses in chat list UI
+      // console.log("Chat list updated.");
     }
 
     // ===== TTS / STT =====
@@ -708,7 +732,7 @@
     }
 
     function stopVoiceListener() {
-      hideMicIndicator();
+      hideMicIndicator(); // ✅ Uses defined function
       if (state.speechRecognition) {
         state.speechRecognition.abort();
         state.speechRecognition = null;
@@ -719,6 +743,7 @@
     function promptForVoiceResponse() {
       if (state.isSpeaking || !state.isJobActive) return;
       if (state.voiceAttemptCount === 0) {
+        // ✅ Start mic IMMEDIATELY on first attempt (no unnecessary delay)
         showMicIndicator();
         setTimeout(startVoiceListener, 300); // Small buffer for UI update
       } else if (state.voiceAttemptCount < 3) {
@@ -758,7 +783,9 @@
       }
     }
 
+    // ✅ FIXED: Removed redundant seenJobIds check from inside showJobPanel
     function showJobPanel(job) {
+      // NO check here - handled in MQTT handler
       state.isJobActive = true;
       state.currentJob = job;
       state.els.jobPanel.style.display = 'block';
@@ -814,7 +841,7 @@
         state.driverJobs.unshift(job);
         if (state.driverJobs.length > 50) state.driverJobs = state.driverJobs.slice(0, 50);
       }
-      localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
+      saveToStorage(`driver_jobs_${state.DRIVER_ID}`, state.driverJobs);
       if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
       if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
     }
@@ -912,7 +939,7 @@
       attachSwipeToDelete();
     }
 
-    // ✅ SWIPE-TO-DELETE FUNCTION
+    // ✅ SWIPE-TO-DELETE FUNCTION (Same as before)
     function attachSwipeToDelete() {
       const items = document.querySelectorAll('#jobHistoryContent .job-item');
       items.forEach(item => {
@@ -960,7 +987,7 @@
                 // Remove from state array
                 state.driverJobs = state.driverJobs.filter(job => job.job !== jobId);
                 // Update local storage
-                localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
+                saveToStorage(`driver_jobs_${state.DRIVER_ID}`, state.driverJobs);
                 // Re-render the list to reflect the change
                 if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
               }, 300); // Match the transition duration
@@ -1099,7 +1126,7 @@
       if (state.chatMessages[chatId].length > 50) {
         state.chatMessages[chatId] = state.chatMessages[chatId].slice(-50);
       }
-      localStorage.setItem(`chat_group_${state.DRIVER_ID}`, JSON.stringify(state.chatMessages.group));
+      saveToStorage(`chat_group_${state.DRIVER_ID}`, state.chatMessages.group);
       if (state.isMenuOpen && state.currentView === 'chat' && state.currentChat === chatId) {
         renderChatMessages();
       }
@@ -1130,7 +1157,7 @@
       document.getElementById('saveDriverIdBtn').addEventListener('click', () => {
         const newId = document.getElementById('driverIdInput').value.trim();
         if (newId && validateDriverId(newId)) {
-          localStorage.setItem('driver_id', newId);
+          saveToStorage('driver_id', newId);
           state.DRIVER_ID = newId;
           if (state.client) {
             state.client.end();
@@ -1144,14 +1171,14 @@
         const radius = parseFloat(val);
         if (!isNaN(radius) && radius >= 1 && radius <= 50) {
           state.maxRadius = radius;
-          localStorage.setItem('max_radius_km', radius.toString());
+          saveToStorage('max_radius_km', radius.toString());
           state.els.status.innerHTML = `✅ Max radius set to ${radius} km`;
         }
       });
       document.getElementById('clearJobsBtn').addEventListener('click', () => {
         if (confirm("Clear all job history?")) {
           state.driverJobs = [];
-          localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, '[]');
+          saveToStorage(`driver_jobs_${state.DRIVER_ID}`, []);
           if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
           if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
           state.els.status.innerHTML = '<span class="gps-source gps-network"></span>✅ Job history cleared';
@@ -1266,21 +1293,18 @@
             return;
           }
 
-          // ✅ FIXED: NEW JOBS - Check local storage for duplicates ONLY
+          // ✅ FIXED: NEW JOBS - Check seenJobIds BEFORE calling showJobPanel
           if (topic.startsWith("pubs/requests/")) {
-            // Check if job ID already exists in saved jobs or pending
-            const jobId = data.job;
-            const jobExistsInHistory = state.driverJobs.some(job => job.job === jobId);
-            const jobExistsInPending = state.pendingJobs.some(job => job.job === jobId);
-
-            if (jobExistsInHistory || jobExistsInPending) {
-              console.log("⏭️ Skipping duplicate job (already in storage):", jobId);
-              return; // Do nothing if duplicate found
+            if (state.seenJobIds.has(data.job)) { // ✅ Check here in MQTT handler
+              console.log("⏭️ Skipping duplicate job (MQTT):", data.job);
+              return; // Exit early if duplicate
             }
+            // Mark as seen IMMEDIATELY after check
+            state.seenJobIds.add(data.job);
+            console.log("🆕 New unique job received and marked as seen:", data.job);
 
-            // Job is new, proceed
             state.pendingJobs.push({ ...data, receivedAt: Date.now() });
-            localStorage.setItem(`pending_jobs_${state.DRIVER_ID}`, JSON.stringify(state.pendingJobs));
+            saveToStorage(`pending_jobs_${state.DRIVER_ID}`, state.pendingJobs);
             addJobToHistory(data, 'queued');
             if (state.driverPresence === 'available' && !state.isJobActive) {
               showJobPanel(data); // ✅ This should now work reliably
@@ -1401,7 +1425,7 @@
       const jobIndex = state.driverJobs.findIndex(j => j.job === jobId);
       if (jobIndex >= 0) {
         state.driverJobs[jobIndex].status = status;
-        localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
+        saveToStorage(`driver_jobs_${state.DRIVER_ID}`, state.driverJobs);
         if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
         if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
       }
@@ -1445,7 +1469,7 @@
         });
       });
 
-      // Job Actions (Accept/Reject Buttons)
+      // Job Actions
       state.els.acceptBtn.addEventListener('click', () => respondToJob(true));
       state.els.rejectBtn.addEventListener('click', () => respondToJob(false));
 
