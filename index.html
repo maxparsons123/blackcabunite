@@ -768,10 +768,7 @@
 
     function showJobPanel(job) {
       // ✅ CRITICAL FIX: Use the CORRECT state.seenJobIds set
-      if (state.seenJobIds.has(job.job)) {
-        console.log("⏭️ Skipping duplicate job (already seen in showJobPanel):", job.job);
-        return;
-      }
+
       state.seenJobIds.add(job.job); // Mark as seen immediately
       console.log("🆕 Showing job panel for:", job.job);
       state.isJobActive = true;
@@ -1525,3 +1522,4 @@
   </script>
 </body>
 </html>
+
