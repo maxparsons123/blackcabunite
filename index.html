@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.2</title>
+  <title>Black Cab Unite v8.3</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -521,7 +521,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.2</div>
+      <div id="appTitle">Black Cab Unite v8.3</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -606,7 +606,7 @@
       }
     });
 
-    // ===== CENTRALIZED STATE =====
+    // ===== CENTRALIZED STATE (v8-style) =====
     const state = {
       DRIVER_ID: localStorage.getItem('driver_id'),
       driverPresence: localStorage.getItem('driver_presence') || 'available',
@@ -660,19 +660,19 @@
     }
 
     // ===== TTS / STT =====
-    function speak(text, onEnd = null) {
+    function speakFeedback(message, onDone = null) {
       if (!('speechSynthesis' in window)) {
-        if (onEnd) setTimeout(onEnd, 100);
+        if (onDone) setTimeout(onDone, 100);
         return;
       }
       state.isSpeaking = true;
       speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
+      const u = new SpeechSynthesisUtterance(message);
       u.lang = 'en-GB';
       u.rate = 0.9;
       u.onend = () => {
         state.isSpeaking = false;
-        if (onEnd) setTimeout(onEnd, 600);
+        if (onDone) setTimeout(onDone, 600);
       };
       speechSynthesis.speak(u);
     }
@@ -690,11 +690,11 @@
         if (/\baccept\b/.test(t) && !/\breject\b/.test(t)) {
           state.voiceAttemptCount = 0;
           respondToJob(true);
-          speak("Job accepted. Thank you.");
+          speakFeedback("Job accepted. Thank you.");
         } else if (/\breject\b/.test(t)) {
           state.voiceAttemptCount = 0;
           respondToJob(false);
-          speak("Job rejected. Understood.");
+          speakFeedback("Job rejected. Understood.");
         } else {
           state.voiceAttemptCount++;
           stopVoiceListener();
@@ -723,12 +723,12 @@
         showMicIndicator();
         setTimeout(startVoiceListener, 300); // Small buffer for UI update
       } else if (state.voiceAttemptCount < 3) {
-        speak("Did not hear you. Please say ‘accept’ or ‘reject’.", () => {
+        speakFeedback("Did not hear you. Please say ‘accept’ or ‘reject’.", () => {
           showMicIndicator();
           startVoiceListener();
         });
       } else {
-        speak("Let me repeat the job.", () => {
+        speakFeedback("Let me repeat the job.", () => {
           const job = currentJob;
           if (job) {
             const utterance = new SpeechSynthesisUtterance(
@@ -770,16 +770,16 @@
       state.els.customerPhone.textContent = job.customerPhone || 'Not provided';
       state.els.jobTimer.style.display = 'block';
       state.els.timerSeconds.textContent = '30';
-      let secondsLeft = 30;
+      let sec = 30;
       state.jobTimerInterval = setInterval(() => {
-        secondsLeft--;
-        state.els.timerSeconds.textContent = secondsLeft;
-        if (secondsLeft <= 0) {
+        sec--;
+        state.els.timerSeconds.textContent = sec;
+        if (sec <= 0) {
           clearInterval(state.jobTimerInterval);
           cleanupJob();
         }
       }, 1000);
-      speak(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}`, () => {
+      speakFeedback(`New job! Pickup at ${job.pubName}. Customer: ${job.customerName || 'name not given'}`, () => {
         state.voiceAttemptCount = 0;
         promptForVoiceResponse();
       });
@@ -787,10 +787,7 @@
 
     function respondToJob(accepted, job = state.currentJob) {
       if (!job || !state.client) return;
-      if (state.jobTimerInterval) {
-        clearInterval(state.jobTimerInterval);
-        state.jobTimerInterval = null;
-      }
+      if (state.jobTimerInterval) clearInterval(state.jobTimerInterval);
       stopVoiceListener();
       speechSynthesis.cancel();
       const payload = {
@@ -804,8 +801,8 @@
       state.client.publish(`jobs/${job.job}/status`, JSON.stringify(payload));
       if (job === state.currentJob) {
         cleanupJob();
+        addJobToHistory(job, accepted ? "bidding" : "rejected");
       } else {
-        // If responding to a job from history, add to history again with new status
         addJobToHistory(job, accepted ? "bidding" : "rejected");
       }
     }
@@ -837,7 +834,6 @@
           <div class="job-detail"><div class="job-label">Job ID</div><div class="job-value">${allocated.job}</div></div>
           <div class="job-detail"><div class="job-label">Customer Name</div><div class="job-value">${allocated.customerName}</div></div>
           <div class="job-detail"><div class="job-label">Customer Phone</div><div class="job-value">${allocated.customerPhone}</div></div>
-          <div class="job-detail"><div class="job-label">Pickup Location</div><div class="job-value">${allocated.lat.toFixed(5)}, ${allocated.lng.toFixed(5)}</div></div>
           <div class="job-detail"><div class="job-label">Status</div><div class="job-value"><span class="job-status status-allocated">ALLOCATED</span></div></div>
         </div>
         <button class="settings-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${allocated.lat},${allocated.lng}', '_blank')">🧭 Navigate to Pickup</button>
@@ -862,6 +858,7 @@
         const dateStr = date.toLocaleDateString();
 
         let actionButtons = '';
+        // ✅ ADDED: "Bid Now" button for queued jobs
         if (job.status === 'queued') {
           actionButtons = `
             <div style="display:flex; gap:8px; margin-top:12px;">
@@ -880,7 +877,6 @@
           <div class="job-pub">Pub: ${job.pubName}</div>
           <div class="job-phone">👤 ${job.customerName || '—'}</div>
           <div class="job-phone">📞 ${job.customerPhone}</div>
-          <div class="job-phone">📍 ${job.lat?.toFixed(5) || 'N/A'}, ${job.lng?.toFixed(5) || 'N/A'}</div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
             <span class="job-status status-${job.status}">${job.status.toUpperCase()}</span>
             <span style="font-size:12px; color:#666;">${dateStr} ${timeStr}</span>
@@ -891,15 +887,14 @@
       });
       state.els.menuContent.appendChild(jobsContainer);
 
-      // Attach event listeners for action buttons
+      // Attach event listeners for action buttons (only for queued jobs)
       state.els.menuContent.querySelectorAll('[data-action]').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const action = e.target.dataset.action;
           const jobId = e.target.dataset.jobid;
-          const job = state.pendingJobs.find(j => j.job === jobId) ||
-                      state.driverJobs.find(j => j.job === jobId && j.status === 'queued');
+          const job = state.driverJobs.find(j => j.job === jobId && j.status === 'queued');
           if (!job) {
-            alert("Job no longer available.");
+            alert("Job no longer available or status changed.");
             return;
           }
           if (action === 'view') {
@@ -918,9 +913,9 @@
       attachSwipeToDelete();
     }
 
-    // ✅ FIXED SWIPE-TO-DELETE FUNCTION
+    // ✅ SWIPE-TO-DELETE FUNCTION (Similar to v7.0 implementation)
     function attachSwipeToDelete() {
-      const items = document.querySelectorAll('#jobHistoryContent .job-item'); // Target items inside container
+      const items = document.querySelectorAll('#jobHistoryContent .job-item');
       items.forEach(item => {
         let startX = 0;
         let currentX = 0;
@@ -976,32 +971,32 @@
 
         // Touch Events for mobile
         item.addEventListener('touchstart', e => {
-          handleStart(e.touches[0].clientX);
-          e.preventDefault(); // Prevent scrolling while swiping
+            handleStart(e.touches[0].clientX);
+            e.preventDefault(); // Prevent scrolling while swiping
         });
         item.addEventListener('touchmove', e => {
-          handleMove(e.touches[0].clientX);
-          e.preventDefault(); // Prevent scrolling while swiping
+            handleMove(e.touches[0].clientX);
+            e.preventDefault(); // Prevent scrolling while swiping
         });
         item.addEventListener('touchend', handleEnd);
 
         // Mouse Events for desktop/testing
         item.addEventListener('mousedown', e => {
-          handleStart(e.clientX);
-          e.preventDefault(); // Prevent text selection
+            handleStart(e.clientX);
+            e.preventDefault(); // Prevent text selection
         });
         item.addEventListener('mousemove', e => {
-          if (isSwiping) {
-            handleMove(e.clientX);
-            e.preventDefault(); // Prevent text selection during swipe
-          }
+            if (isSwiping) {
+                handleMove(e.clientX);
+                e.preventDefault(); // Prevent text selection during swipe
+            }
         });
         item.addEventListener('mouseup', handleEnd);
         // Also handle mouse leaving the element while dragging
         item.addEventListener('mouseleave', () => {
-          if (isSwiping) {
-            handleEnd();
-          }
+            if (isSwiping) {
+                handleEnd();
+            }
         });
 
         // Prevent text selection during swipe interaction
@@ -1108,6 +1103,10 @@
       localStorage.setItem(`chat_group_${state.DRIVER_ID}`, JSON.stringify(state.chatMessages.group));
       if (state.isMenuOpen && state.currentView === 'chat' && state.currentChat === chatId) {
         renderChatMessages();
+      }
+      if (!state.isMenuOpen || state.currentView !== 'chat' || state.currentChat !== chatId) {
+        state.unreadCounts[chatId] = (state.unreadCounts[chatId] || 0) + 1;
+        updateChatList();
       }
     }
 
@@ -1269,16 +1268,15 @@
             return;
           }
 
-          // NEW JOBS (✅ FIXED: Call showJobPanel here)
+          // NEW JOBS
           if (topic.startsWith("pubs/requests/")) {
             if (!state.seenJobIds.has(data.job)) {
               state.seenJobIds.add(data.job);
               state.pendingJobs.push({ ...data, receivedAt: Date.now() });
               localStorage.setItem(`pending_jobs_${state.DRIVER_ID}`, JSON.stringify(state.pendingJobs));
               addJobToHistory(data, 'queued');
-              // ✅ FIXED: Check conditions and show panel IMMEDIATELY if eligible
               if (state.driverPresence === 'available' && !state.isJobActive) {
-                showJobPanel(data); // <--- THIS WAS MISSING
+                showJobPanel(data);
               }
             }
           }
@@ -1289,7 +1287,7 @@
             if (data.result === "won") {
               updateJobStatus(jobId, 'allocated');
               state.els.jobWonModal.style.display = 'flex';
-              speak("You won the job!");
+              speakFeedback("You won the job!");
               setTimeout(() => { state.els.jobWonModal.style.display = 'none'; }, 3000);
               if (!state.isMenuOpen) state.els.menuBtn.click();
               else renderView('currentJob');
@@ -1336,7 +1334,7 @@
         data.presetType === "cancel_ride" ? "Passenger wants to cancel the ride." :
         data.presetType === "call_driver" ? "Passenger is trying to call you." :
         `Passenger message: ${data.presetType}`;
-      speak(msg);
+      speakFeedback(msg);
       showPassengerPopup(msg, data);
     }
 
