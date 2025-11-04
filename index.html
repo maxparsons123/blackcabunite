@@ -1287,17 +1287,32 @@
           }
 
           // ✅ FIXED: NEW JOBS - Use CORRECT state.seenJobIds
-          if (topic.startsWith("pubs/requests/")) {
-            if (!state.seenJobIds.has(data.job)) { // ✅ Use the centralized set
-              state.seenJobIds.add(data.job); // ✅ Add to set immediately
-              state.pendingJobs.push({ ...data, receivedAt: Date.now() });
-              localStorage.setItem(`pending_jobs_${state.DRIVER_ID}`, JSON.stringify(state.pendingJobs));
-              addJobToHistory(data, 'queued');
-              if (state.driverPresence === 'available' && !state.isJobActive) {
-                showJobPanel(data); // ✅ This should now work reliably
-              }
-            } else {
-              console.log("⏭️ Skipping duplicate job (MQTT):", data.job);
+  if (topic.startsWith("pubs/requests/")) {
+            // ✅ CRITICAL FIX: Use the CORRECT state.seenJobIds set
+            if (state.seenJobIds.has(data.job)) {
+              console.log("⏭️ Skipping duplicate job (already seen):", data.job);
+              return; // Exit early if duplicate
+            }
+            // Mark as seen IMMEDIATELY after checking
+            state.seenJobIds.add(data.job);
+            console.log("🆕 New unique job received and marked as seen:", data.job);
+
+            state.pendingJobs.push({ ...data, receivedAt: Date.now() });
+            localStorage.setItem(`pending_jobs_${state.DRIVER_ID}`, JSON.stringify(state.pendingJobs));
+            addJobToHistory(data, 'queued'); // This might also add to seenJobIds if implemented in addJobToHistory
+            if (state.driverPresence === 'available' && !state.isJobActive) {
+              showJobPanel(data);
+            } else if (state.driverPresence === 'busy') {
+              // Optional: Notify driver if busy
+              speak("New job queued. You are set to busy.");
+              // Visual cue
+              const btn = document.getElementById('menuBtn');
+              btn.style.transform = 'scale(1.1)';
+              btn.style.backgroundColor = '#ff6b35';
+              setTimeout(() => {
+                btn.style.transform = '';
+                btn.style.backgroundColor = '#FFD700';
+              }, 600);
             }
           }
 
@@ -1509,3 +1524,4 @@
   </script>
 </body>
 </html>
+
