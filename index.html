@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v8.9</title>
+  <title>Black Cab Unite v9</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -521,7 +521,7 @@
   <div id="map"></div>
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v8.9</div>
+      <div id="appTitle">Black Cab Unite v9.0</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -846,23 +846,30 @@
     }
 
     // ===== MENU SYSTEM =====
-    function renderCurrentJob() {
-      const allocated = state.driverJobs.find(j => j.status === 'allocated');
-      if (!allocated) {
-        state.els.menuContent.innerHTML = '<div class="no-current-job"><div class="icon">🚕</div><div>No active job</div></div>';
-        return;
-      }
-      state.els.menuContent.innerHTML = `
-        <div class="current-job-info">
-          <div class="job-detail"><div class="job-label">Job ID</div><div class="job-value">${allocated.job}</div></div>
-          <div class="job-detail"><div class="job-label">Customer Name</div><div class="job-value">${allocated.customerName}</div></div>
-          <div class="job-detail"><div class="job-label">Customer Phone</div><div class="job-value">${allocated.customerPhone}</div></div>
-          <div class="job-detail"><div class="job-label">Status</div><div class="job-value"><span class="job-status status-allocated">ALLOCATED</span></div></div>
-        </div>
-        <button class="settings-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${allocated.lat},${allocated.lng}', '_blank')">🧭 Navigate to Pickup</button>
-        <button class="settings-btn" style="background:#28a745;" onclick="window.location.href='tel:${allocated.customerPhone.replace(/\D/g,'')}'">📞 Call Customer</button>
-      `;
-    }
+function renderCurrentJob() {
+  const allocated = state.driverJobs.find(j => j.status === 'allocated');
+  if (!allocated) {
+    state.els.menuContent.innerHTML = '<div class="no-current-job"><div class="icon">🚕</div><div>No active job</div></div>';
+    return;
+  }
+  // Construct the pickup location string, handling potential missing data
+  const pickupLocationStr = allocated.pubName
+    ? `${allocated.pubName} (${allocated.lat?.toFixed(5) || 'N/A'}, ${allocated.lng?.toFixed(5) || 'N/A'})`
+    : `(${allocated.lat?.toFixed(5) || 'N/A'}, ${allocated.lng?.toFixed(5) || 'N/A'})`; // Fallback to just coordinates if pubName is missing
+
+  state.els.menuContent.innerHTML = `
+    <div class="current-job-info">
+      <div class="job-detail"><div class="job-label">Job ID</div><div class="job-value">${allocated.job}</div></div>
+      <!-- Add the Pickup Location section here -->
+      <div class="job-detail"><div class="job-label">Pickup Location</div><div class="job-value">${pickupLocationStr}</div></div>
+      <div class="job-detail"><div class="job-label">Customer Name</div><div class="job-value">${allocated.customerName}</div></div>
+      <div class="job-detail"><div class="job-label">Customer Phone</div><div class="job-value">${allocated.customerPhone}</div></div>
+      <div class="job-detail"><div class="job-label">Status</div><div class="job-value"><span class="job-status status-allocated">ALLOCATED</span></div></div>
+    </div>
+    <button class="settings-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${allocated.lat},${allocated.lng}', '_blank')">🧭 Navigate to Pickup</button>
+    <button class="settings-btn" style="background:#28a745;" onclick="window.location.href='tel:${allocated.customerPhone.replace(/\D/g,'')}'">📞 Call Customer</button>
+  `;
+}
 
     function renderJobHistory() {
       state.els.menuContent.innerHTML = '';
@@ -1543,3 +1550,4 @@
   </script>
 </body>
 </html>
+
