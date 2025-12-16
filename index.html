@@ -654,6 +654,7 @@
   </div>
 
   <!-- === NEW: RANK MODAL === -->
+<!-- ... existing HTML ... -->
   <div id="rankModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:3000; justify-content:center; align-items:center;">
     <div style="background:white; width:95%; max-width:500px; height:85%; border-radius:16px; overflow:hidden; display:flex; flex-direction:column;">
       <div style="padding:16px; background:#f8f9fa; border-bottom:1px solid #eee;">
@@ -665,12 +666,14 @@
         <div id="rankSearchStatus" style="font-size:12px; color:#666; margin-top:6px;">Enter destination and click 🔍 or press Enter</div>
       </div>
       <div id="rankMapContainer" style="flex:1;"></div>
-      <div style="padding:16px; display:flex; gap:10px;">
+      <div style="padding:16px; display:flex; gap:10px;"> <!-- Buttons container -->
         <button id="rankCloseBtn" style="flex:1; padding:12px; background:#ccc; border:none; border-radius:10px;">Close</button>
+        <button id="rankViewDriversBtn" style="flex:1; padding:12px; background:#6c757d; color:white; border:none; border-radius:10px; cursor:not-allowed; opacity:0.6;" disabled>🚗 View Drivers</button> <!-- NEW Button -->
         <button id="rankNavBtn" style="flex:1; padding:12px; background:#1f6feb; color:white; border:none; border-radius:10px; cursor:not-allowed; opacity:0.6;" disabled>🧭 Navigate</button>
       </div>
     </div>
   </div>
+<!-- ... existing HTML ... -->
 
   <!-- === NEW: RANK BUTTON === -->
   <button id="rankBtn">📍<br>RANK</button>
@@ -1636,11 +1639,13 @@
     // ===== === NEW: RANK FEATURE === =====
 // ===== RANK FEATURE LOGIC =====
 // ===== RANK FEATURE LOGIC =====
+// ===== RANK FEATURE LOGIC =====
 function initRankFeature() {
   const rankBtn = document.getElementById('rankBtn');
   const rankModal = document.getElementById('rankModal');
   const rankCloseBtn = document.getElementById('rankCloseBtn');
   const rankNavBtn = document.getElementById('rankNavBtn');
+  const rankViewDriversBtn = document.getElementById('rankViewDriversBtn'); // NEW: Get the new button
   const rankDestinationInput = document.getElementById('rankDestinationInput');
   const rankSearchBtn = document.getElementById('rankSearchBtn');
   const rankMapContainer = document.getElementById('rankMapContainer');
@@ -1651,6 +1656,8 @@ function initRankFeature() {
   let driverMarker = null; // Store the driver's marker on the rank map
   let dropoffMarker = null; // Store the drop-off marker
   const jobMarkers = [];
+  let otherDriverMarkers = []; // Store markers for other drivers
+  let isViewingDrivers = false; // NEW: Track the toggle state
 
   // --- NEW: Function to safely update the driver marker ---
   function updateDriverMarkerOnRankMap() {
@@ -1695,7 +1702,6 @@ function initRankFeature() {
     }
 
     // Update the driver marker on the rank map when modal opens
-    // This ensures it's placed if coords are available now
     updateDriverMarkerOnRankMap();
 
     // Re-center or set initial view after modal is open, prioritize driver location
@@ -1706,6 +1712,13 @@ function initRankFeature() {
     }
     rankMap.invalidateSize();
     console.log("Rank map view set / invalidated size.");
+
+    // Reset the viewing drivers state when modal opens
+    isViewingDrivers = false;
+    rankViewDriversBtn.textContent = "🚗 View Drivers"; // Reset button text
+    rankViewDriversBtn.disabled = true; // Button is disabled until destination is set
+    rankViewDriversBtn.style.opacity = "0.6";
+    rankViewDriversBtn.style.cursor = "not-allowed";
   });
 
   rankCloseBtn?.addEventListener('click', () => {
@@ -1714,8 +1727,22 @@ function initRankFeature() {
     if (routeLine) { rankMap.removeLayer(routeLine); routeLine = null; }
     if (driverMarker) { rankMap.removeLayer(driverMarker); driverMarker = null; }
     if (dropoffMarker) { rankMap.removeLayer(dropoffMarker); dropoffMarker = null; }
+    // Clear job markers
     jobMarkers.forEach(m => rankMap.removeLayer(m));
     jobMarkers.length = 0;
+    // Clear other driver markers
+    otherDriverMarkers.forEach(m => rankMap.removeLayer(m));
+    otherDriverMarkers.length = 0;
+    // Disable buttons again
+    rankViewDriversBtn.disabled = true;
+    rankViewDriversBtn.style.opacity = "0.6";
+    rankViewDriversBtn.style.cursor = "not-allowed";
+    rankNavBtn.disabled = true;
+    rankNavBtn.style.opacity = "0.6";
+    rankNavBtn.style.cursor = "not-allowed";
+    // Reset toggle state
+    isViewingDrivers = false;
+    rankViewDriversBtn.textContent = "🚗 View Drivers";
   });
 
   rankSearchBtn?.addEventListener('click', async () => {
@@ -1740,6 +1767,84 @@ function initRankFeature() {
       await performSearch(query);
     }
   });
+
+  // NEW: Add event listener for the View Drivers button (Toggle functionality)
+  rankViewDriversBtn?.addEventListener('click', () => {
+      console.log("Rank: View Drivers button clicked. Current state: isViewingDrivers =", isViewingDrivers);
+      if (isViewingDrivers) {
+          // If currently viewing, remove drivers
+          otherDriverMarkers.forEach(m => rankMap.removeLayer(m));
+          otherDriverMarkers.length = 0; // Clear the array
+          isViewingDrivers = false;
+          rankViewDriversBtn.textContent = "🚗 View Drivers";
+          console.log("Rank: Drivers hidden from map.");
+      } else {
+          // If not viewing, show drivers
+          showOtherDriversOnMap();
+          isViewingDrivers = true;
+          rankViewDriversBtn.textContent = "🚗 Hide Drivers";
+          console.log("Rank: Drivers shown on map.");
+      }
+  });
+
+  // NEW: Function to show other drivers near the destination
+  function showOtherDriversOnMap() {
+      if (!rankMap || !dropoffMarker) {
+          console.log("Rank: Cannot show other drivers - map or destination not ready.");
+          return;
+      }
+
+      // Clear any existing driver markers before adding new ones
+      otherDriverMarkers.forEach(m => rankMap.removeLayer(m));
+      otherDriverMarkers.length = 0;
+
+      const dropoffPos = dropoffMarker.getLatLng();
+      const maxDist = state.maxRadius || 10; // Use the same radius as for jobs
+      const R = 6371; // Earth radius in km
+
+      // Get current timestamp to check driver activity
+      const now = Date.now();
+      const onlineThreshold = 30000; // 30 seconds
+
+      for (const [driverId, locationData] of Object.entries(state.otherDrivers)) {
+          // Skip the current driver
+          if (driverId === state.DRIVER_ID) continue;
+
+          // Check if the driver's location update is recent
+          if (now - (locationData.ts || 0) > onlineThreshold) continue;
+
+          const dLat = (locationData.lat - dropoffPos.lat) * Math.PI / 180;
+          const dLon = (locationData.lng - dropoffPos.lng) * Math.PI / 180;
+          const a = Math.sin(dLat/2)**2 + Math.cos(dropoffPos.lat * Math.PI / 180) * Math.cos(locationData.lat * Math.PI / 180) * Math.sin(dLon/2)**2;
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = R * c;
+
+          // Only add marker if within radius
+          if (distance <= maxDist) {
+              const otherDriverMarker = L.marker([locationData.lat, locationData.lng], {
+                  // Use a simple blue circle icon for other drivers
+                  icon: L.divIcon({html: `<div style="background-color: #007bff; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">${driverId.charAt(0).toUpperCase()}</div>`, className: '', iconSize: [24, 24], iconAnchor: [12, 12]})
+              }).addTo(rankMap);
+
+              // Add popup with driver ID and status
+              const driverStatus = state.driverStatus[driverId]?.status || 'unknown';
+              const statusColor = driverStatus === 'available' ? '#28a745' : driverStatus === 'busy' ? '#ffc107' : '#dc3545';
+              otherDriverMarker.bindPopup(`
+                  <b>Driver:</b> ${driverId}<br>
+                  <b>Status:</b> <span style="color: ${statusColor}; font-weight: bold;">${driverStatus.toUpperCase()}</span><br>
+                  <b>Distance:</b> ${distance.toFixed(2)} km
+              `);
+
+              otherDriverMarkers.push(otherDriverMarker);
+          }
+      }
+
+      console.log(`Rank: Added ${otherDriverMarkers.length} other driver markers to map.`);
+      if (otherDriverMarkers.length === 0) {
+          console.log("Rank: No other drivers found near the destination.");
+      }
+  }
+
 
   async function performSearch(query) {
     console.log("Performing search for:", query);
@@ -1793,6 +1898,9 @@ function initRankFeature() {
       if (dropoffMarker) { rankMap.removeLayer(dropoffMarker); dropoffMarker = null; }
       jobMarkers.forEach(m => rankMap.removeLayer(m));
       jobMarkers.length = 0;
+      // Also clear other driver markers from previous searches
+      otherDriverMarkers.forEach(m => rankMap.removeLayer(m));
+      otherDriverMarkers.length = 0;
 
       // --- NEW: Calculate and Display Street Route using OSRM ---
       let distanceKm = null; // Initialize distance variable
@@ -1916,10 +2024,16 @@ function initRankFeature() {
       nearbyJobs.forEach(j => bounds.extend([j.lat, j.lng]));
       rankMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
 
-      // Enable nav
+      // Enable nav and view drivers buttons
       rankNavBtn.disabled = false;
       rankNavBtn.style.opacity = "1";
       rankNavBtn.style.cursor = "pointer";
+
+      rankViewDriversBtn.disabled = false; // Enable the View Drivers button
+      rankViewDriversBtn.style.opacity = "1";
+      rankViewDriversBtn.style.cursor = "pointer";
+      isViewingDrivers = false; // Reset the state when a new destination is searched
+      rankViewDriversBtn.textContent = "🚗 View Drivers"; // Reset button text
 
       // --- NEW: Update status text to include distance, time, and job count ---
       if (distanceKm !== null && timeMinutes !== null) {
