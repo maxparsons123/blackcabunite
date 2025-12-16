@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Black Cab Unite v10.1</title>
+  <title>Black Cab Unite v10.2</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="manifest" href="./manifest.json">
@@ -10,7 +10,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
   <style>
-    /* ... (all your existing CSS remains unchanged) ... */
     body { 
       margin:0; 
       font-family:system-ui, -apple-system, "Segoe UI", sans-serif; 
@@ -93,7 +92,6 @@
     #menuBtn:active {
       transform: scale(0.95);
     }
-
     /* === NEW: RANK BUTTON STYLE === */
     #rankBtn {
       position: absolute;
@@ -114,7 +112,6 @@
       box-shadow: 0 3px 8px rgba(0,0,0,0.3);
       font-size: 14px;
     }
-
     #passengerPopup {
       display: none;
       position: fixed;
@@ -430,6 +427,7 @@
     #rankMapContainer {
       flex: 1;
     }
+
     #jobWonModal {
       display: none;
       position: fixed;
@@ -447,11 +445,13 @@
       max-width: 320px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.3);
     }
+    /* Enhanced Taxi Marker */
     .taxi-marker {
       background: transparent !important;
       border: none !important;
       box-shadow: none !important;
     }
+    /* Chat View Enhancements */
     #chatMessages {
       flex: 1;
       padding: 16px;
@@ -550,6 +550,7 @@
       color: #666;
       line-height: 1.5;
     }
+    /* Driver List Enhancements */
     #chatList {
       flex: 1;
       overflow-y: auto;
@@ -642,10 +643,9 @@
 </head>
 <body>
   <div id="map"></div>
-  
   <div id="headerBanner">
     <div id="appTitleContainer">
-      <div id="appTitle">Black Cab Unite v10.1</div>
+      <div id="appTitle">Black Cab Unite v10.2</div>
       <div id="statusCaption" class="status-available">
         <span class="status-dot"></span> Available
       </div>
@@ -653,30 +653,28 @@
     <button id="menuBtn">☰</button>
   </div>
 
-  <!-- === NEW: RANK BUTTON & MODAL === -->
-  <button id="rankBtn">📍<br>RANK</button>
-
-<div id="rankModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:3000; justify-content:center; align-items:center;">
-  <div style="background:white; width:95%; max-width:500px; height:85%; border-radius:16px; overflow:hidden; display:flex; flex-direction:column;">
-    <div style="padding:16px; background:#f8f9fa; border-bottom:1px solid #eee;">
-      <h3 style="margin:0; color:#1f6feb; font-size:18px;">Rank: Route & Nearby Jobs</h3>
-      <!-- Updated input container with search button -->
-      <div style="display:flex; margin-top:12px;">
-        <input type="text" id="rankDestinationInput" placeholder="Enter drop-off destination..." style="flex:1; padding:12px; border:1px solid #ccc; border-radius:8px 0 0 8px; font-size:15px;">
-        <button id="rankSearchBtn" style="padding:12px 16px; background:#1f6feb; color:white; border:none; border-radius:0 8px 8px 0; cursor:pointer; font-size:16px;">🔍</button>
+  <!-- === NEW: RANK MODAL === -->
+  <div id="rankModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:3000; justify-content:center; align-items:center;">
+    <div style="background:white; width:95%; max-width:500px; height:85%; border-radius:16px; overflow:hidden; display:flex; flex-direction:column;">
+      <div style="padding:16px; background:#f8f9fa; border-bottom:1px solid #eee;">
+        <h3 style="margin:0; color:#1f6feb; font-size:18px;">Rank: Route & Nearby Jobs</h3>
+        <div style="display:flex; margin-top:12px;">
+          <input type="text" id="rankDestinationInput" placeholder="Enter drop-off destination..." style="flex:1; padding:12px; border:1px solid #ccc; border-radius:8px 0 0 8px; font-size:15px;">
+          <button id="rankSearchBtn" style="padding:12px 16px; background:#1f6feb; color:white; border:none; border-radius:0 8px 8px 0; cursor:pointer; font-size:16px;">🔍</button>
+        </div>
+        <div id="rankSearchStatus" style="font-size:12px; color:#666; margin-top:6px;">Enter destination and click 🔍 or press Enter</div>
       </div>
-      <div style="font-size:12px; color:#666; margin-top:6px;">Enter destination and click 🔍 or press Enter</div>
-    </div>
-    <div id="rankMapContainer" style="flex:1;"></div>
-    <div style="padding:16px; display:flex; gap:10px;">
-      <button id="rankCloseBtn" style="flex:1; padding:12px; background:#ccc; border:none; border-radius:10px;">Close</button>
-      <button id="rankNavBtn" style="flex:1; padding:12px; background:#1f6feb; color:white; border:none; border-radius:10px; cursor:not-allowed; opacity:0.6;" disabled>🧭 Navigate</button>
+      <div id="rankMapContainer" style="flex:1;"></div>
+      <div style="padding:16px; display:flex; gap:10px;">
+        <button id="rankCloseBtn" style="flex:1; padding:12px; background:#ccc; border:none; border-radius:10px;">Close</button>
+        <button id="rankNavBtn" style="flex:1; padding:12px; background:#1f6feb; color:white; border:none; border-radius:10px; cursor:not-allowed; opacity:0.6;" disabled>🧭 Navigate</button>
+      </div>
     </div>
   </div>
-</div>
 
+  <!-- === NEW: RANK BUTTON === -->
+  <button id="rankBtn">📍<br>RANK</button>
 
-  <!-- === REST OF YOUR UI (unchanged) === -->
   <div id="statusDropdown" style="position: absolute; top: 52px; left: 16px; background: white; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1003; display: none; flex-direction: column; min-width: 180px;">
     <div class="status-option" data-status="available" style="padding:12px 16px; cursor:pointer; display:flex; align-items:center; gap:10px;"><span class="status-led" style="background:#28a745; width:12px; height:12px; border-radius:50%;"></span> Available</div>
     <div class="status-option" data-status="busy" style="padding:12px 16px; cursor:pointer; display:flex; align-items:center; gap:10px;"><span class="status-led" style="background:#ffc107; width:12px; height:12px; border-radius:50%;"></span> Busy</div>
@@ -731,12 +729,9 @@
       <button id="presetReply2" class="replyBtn">Arrived</button>
     </div>
   </div>
-
-  <!-- SCRIPTS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
-    // ===== YOUR EXISTING CONFIG & STATE (unchanged) =====
     const firebaseConfig = {
       apiKey: "AIzaSyBq1aN-KRtRW7S243ef7lz7fnZmlBcuN1s",
       authDomain: "cabunite.firebaseapp.com",
@@ -755,7 +750,7 @@
         });
       }
     });
-
+    // ===== CENTRALIZED STATE (v8-style) =====
     const state = {
       DRIVER_ID: localStorage.getItem('driver_id'),
       driverPresence: localStorage.getItem('driver_presence') || 'available',
@@ -772,17 +767,18 @@
       isSpeaking: false,
       voiceAttemptCount: 0,
       maxRadius: parseFloat(localStorage.getItem('max_radius_km') || '10'),
+      // ✅ FIXED: Initialize seenJobIds correctly from saved data
       seenJobIds: new Set(),
       driverJobs: JSON.parse(localStorage.getItem(`driver_jobs_${localStorage.getItem('driver_id')}`)) || [],
       pendingJobs: JSON.parse(localStorage.getItem(`pending_jobs_${localStorage.getItem('driver_id')}`)) || [],
       chatMessages: { group: JSON.parse(localStorage.getItem(`chat_group_${localStorage.getItem('driver_id')}`)) || [] },
       unreadCounts: { group: 0 },
-      otherDrivers: {},
-      driverStatus: {},
+      otherDrivers: {}, // Store other drivers' location data
+      driverStatus: {}, // Store other drivers' status data (timestamp and status)
       fcmToken: null,
       gpsWatchId: null,
-      wakeLock: null,
-      jobWakeLock: null,
+      wakeLock: null, // Main wake lock for app visibility
+      jobWakeLock: null, // Old variable, kept for compatibility but not used for main logic
       currentChat: 'group',
       els: {
         status: document.getElementById('status'),
@@ -802,13 +798,12 @@
         jobWonModal: document.getElementById('jobWonModal')
       }
     };
-
+    // ✅ CRITICAL FIX: Populate seenJobIds from saved jobs on startup
     const savedDriverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${state.DRIVER_ID}`)) || [];
     const savedPendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${state.DRIVER_ID}`)) || [];
     state.seenJobIds = new Set([...savedDriverJobs.map(j => j.job), ...savedPendingJobs.map(p => p.job)]);
     console.log("✅ Initial seenJobIds:", [...state.seenJobIds]);
-
-    // ===== EXISTING HELPER FUNCTIONS (unchanged) =====
+    // ===== VALIDATION & HELPERS (DEFINED FIRST) =====
     function validateDriverId(id) {
       return id && /^[a-zA-Z0-9_-]+$/.test(id);
     }
@@ -818,10 +813,15 @@
     function showMicIndicator() {
       state.els.micIndicator.style.display = 'block';
     }
-    function hideMicIndicator() {
+    function hideMicIndicator() { // ✅ DEFINED HERE
       state.els.micIndicator.style.display = 'none';
     }
-    function updateChatList() {}
+    function updateChatList() { // ✅ DEFINED HERE
+      // Placeholder - implement logic if needed
+      // e.g., update unread badges, online statuses in chat list UI
+      // console.log("Chat list updated.");
+    }
+    // ===== TTS / STT =====
     function speakFeedback(message, onDone = null) {
       if (!('speechSynthesis' in window)) {
         if (onDone) setTimeout(onDone, 100);
@@ -864,21 +864,23 @@
         state.speechRecognition = null;
       };
       state.speechRecognition.onerror = () => { state.speechRecognition = null; };
-      state.speechRecognition.onend = () => { state.speechRecognition = null; hideMicIndicator(); };
+      state.speechRecognition.onend = () => { state.speechRecognition = null; hideMicIndicator(); }; // ✅ Uses defined function
       try { state.speechRecognition.start(); } catch (e) {}
     }
     function stopVoiceListener() {
-      hideMicIndicator();
+      hideMicIndicator(); // ✅ Uses defined function
       if (state.speechRecognition) {
         state.speechRecognition.abort();
         state.speechRecognition = null;
       }
     }
+    // ✅ FIXED: Immediate mic on first attempt
     function promptForVoiceResponse() {
       if (state.isSpeaking || !state.isJobActive) return;
       if (state.voiceAttemptCount === 0) {
+        // ✅ Start mic IMMEDIATELY on first attempt (no unnecessary delay)
         showMicIndicator();
-        setTimeout(startVoiceListener, 300);
+        setTimeout(startVoiceListener, 300); // Small buffer for UI update
       } else if (state.voiceAttemptCount < 3) {
         speakFeedback("Did not hear you. Please say ‘accept’ or ‘reject’.", () => {
           showMicIndicator();
@@ -901,6 +903,7 @@
         });
       }
     }
+    // ===== JOB SYSTEM =====
     function cleanupJob() {
       if (state.jobTimerInterval) clearInterval(state.jobTimerInterval);
       state.els.jobPanel.style.display = 'none';
@@ -908,8 +911,11 @@
       speechSynthesis.cancel();
       state.currentJob = null;
       state.isJobActive = false;
+      // Removed old jobWakeLock logic from here - now managed by visibilitychange listener
     }
+    // ✅ FIXED: Removed redundant seenJobIds check from inside showJobPanel
     function showJobPanel(job) {
+      // NO check here - handled in MQTT handler
       state.isJobActive = true;
       state.currentJob = job;
       state.els.jobPanel.style.display = 'block';
@@ -967,167 +973,22 @@
       if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
       if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
     }
-
-    // ===== === NEW: RANK FEATURE === =====
-   function initRankFeature() {
-  const rankBtn = document.getElementById('rankBtn');
-  const rankModal = document.getElementById('rankModal');
-  const rankCloseBtn = document.getElementById('rankCloseBtn');
-  const rankNavBtn = document.getElementById('rankNavBtn');
-  const rankDestinationInput = document.getElementById('rankDestinationInput');
-  const rankSearchBtn = document.getElementById('rankSearchBtn'); // NEW: Get the search button
-  const rankMapContainer = document.getElementById('rankMapContainer');
-
-  let rankMap = null;
-  let routeLine = null;
-  const jobMarkers = [];
-
-  rankBtn?.addEventListener('click', () => {
-    rankModal.style.display = 'flex';
-    rankDestinationInput.value = '';
-
-    if (!rankMap) {
-      rankMap = L.map(rankMapContainer, {
-        zoomControl: true,
-        attributionControl: false
-      });
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18
-      }).addTo(rankMap);
-    }
-
-    if (state.driverCoords) {
-      rankMap.setView([state.driverCoords.lat, state.driverCoords.lng], 12);
-    } else {
-      rankMap.setView([52.4068, -1.5197], 12);
-    }
-  });
-
-  rankCloseBtn?.addEventListener('click', () => {
-    rankModal.style.display = 'none';
-    if (routeLine) { rankMap.removeLayer(routeLine); routeLine = null; }
-    jobMarkers.forEach(m => rankMap.removeLayer(m));
-    jobMarkers.length = 0;
-  });
-
-  // NEW: Handle click on the search button
-  rankSearchBtn?.addEventListener('click', async () => {
-    const query = rankDestinationInput.value.trim();
-    if (query.length < 3) {
-      alert("Please enter at least 3 characters.");
-      return;
-    }
-    await performSearch(query);
-  });
-
-  // Keep the Enter key functionality as well
-  rankDestinationInput?.addEventListener('keypress', async (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault(); // Prevent any default form submission
-      const query = rankDestinationInput.value.trim();
-      if (query.length < 3) {
-        alert("Please enter at least 3 characters.");
-        return;
-      }
-      await performSearch(query);
-    }
-  });
-
-  // NEW: Extract search logic into a reusable function
-  async function performSearch(query) {
-    try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!data[0]) { alert("📍 Destination not found"); return; }
-
-      const dropoff = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lng) };
-      const from = state.driverCoords ? [state.driverCoords.lat, state.driverCoords.lng] : [52.4, -1.5];
-      const to = [dropoff.lat, dropoff.lng];
-
-      // Clear old
-      if (routeLine) { rankMap.removeLayer(routeLine); routeLine = null; }
-      jobMarkers.forEach(m => rankMap.removeLayer(m));
-      jobMarkers.length = 0;
-
-      // Route line
-      routeLine = L.polyline([from, to], { color: '#1f6feb', weight: 4, dashArray: '5,5' }).addTo(rankMap);
-
-      // Drop-off marker
-      L.marker(to).addTo(rankMap).bindPopup("📍 Drop-off").openPopup();
-
-      // Nearby jobs
-      const R = 6371;
-      const maxDist = state.maxRadius || 10;
-      const nearbyJobs = state.pendingJobs.filter(job => {
-        if (!job.lat || !job.lng) return false;
-        const dLat = (job.lat - dropoff.lat) * Math.PI / 180;
-        const dLon = (job.lng - dropoff.lng) * Math.PI / 180;
-        const a = Math.sin(dLat/2)**2 + Math.cos(dropoff.lat * Math.PI / 180) * Math.cos(job.lat * Math.PI / 180) * Math.sin(dLon/2)**2;
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return (R * c) <= maxDist;
-      });
-
-      // Add job markers
-      nearbyJobs.forEach(job => {
-        const marker = L.circleMarker([job.lat, job.lng], {
-          radius: 7,
-          fillColor: '#28a745',
-          color: '#fff',
-          weight: 2,
-          fillOpacity: 0.9
-        }).addTo(rankMap);
-
-        marker.bindPopup(`
-          <b>Job:</b> ${job.job}<br>
-          <b>Pub:</b> ${job.pubName || '—'}<br>
-          <button onclick="(function(){
-            respondToJob(true, ${JSON.stringify(job)});
-            document.getElementById('rankModal').style.display='none';
-            if (routeLine) { routeLine.remove(); routeLine = null; }
-            const ms = window.rankJobMarkers || [];
-            ms.forEach(m => m.remove());
-            window.rankJobMarkers = [];
-          })()" style="margin-top:6px; padding:4px 8px; background:#1f6feb; color:white; border:none; border-radius:4px; font-size:12px;">
-            💰 Bid Now
-          </button>
-        `);
-        jobMarkers.push(marker);
-      });
-
-      // Fit view
-      const bounds = L.latLngBounds([from, to]);
-      nearbyJobs.forEach(j => bounds.extend([j.lat, j.lng]));
-      rankMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-
-      // Enable nav
-      rankNavBtn.disabled = false;
-      rankNavBtn.style.opacity = "1";
-      rankNavBtn.style.cursor = "pointer";
-      rankNavBtn.onclick = () => {
-        window.open(`https://www.google.com/maps/dir/?api=1&destination=${dropoff.lat},${dropoff.lng}`, '_blank');
-      };
-    } catch (err) {
-      console.error("Rank error:", err);
-      alert("Search failed. Check internet.");
-    }
-  }
-}
-
-    // ===== REMAINING EXISTING FUNCTIONS (renderJobHistory, renderSettingsView, etc.) =====
-
+    // ===== MENU SYSTEM =====
+    // ✅ FIXED: renderCurrentJob to include pickup location
     function renderCurrentJob() {
       const allocated = state.driverJobs.find(j => j.status === 'allocated');
       if (!allocated) {
         state.els.menuContent.innerHTML = '<div class="no-current-job"><div class="icon">🚕</div><div>No active job</div></div>';
         return;
       }
+      // Construct the pickup location string, handling potential missing data
       const pickupLocationStr = allocated.pubName
         ? `${allocated.pubName} (${allocated.lat?.toFixed(5) || 'N/A'}, ${allocated.lng?.toFixed(5) || 'N/A'})`
-        : `(${allocated.lat?.toFixed(5) || 'N/A'}, ${allocated.lng?.toFixed(5) || 'N/A'})`;
+        : `(${allocated.lat?.toFixed(5) || 'N/A'}, ${allocated.lng?.toFixed(5) || 'N/A'})`; // Fallback to just coordinates if pubName is missing
       state.els.menuContent.innerHTML = `
         <div class="current-job-info">
           <div class="job-detail"><div class="job-label">Job ID</div><div class="job-value">${allocated.job}</div></div>
+          <!-- Add the Pickup Location section here -->
           <div class="job-detail"><div class="job-label">Pickup Location</div><div class="job-value">${pickupLocationStr}</div></div>
           <div class="job-detail"><div class="job-label">Customer Name</div><div class="job-value">${allocated.customerName}</div></div>
           <div class="job-detail"><div class="job-label">Customer Phone</div><div class="job-value">${allocated.customerPhone}</div></div>
@@ -1137,7 +998,6 @@
         <button class="settings-btn" style="background:#28a745;" onclick="window.location.href='tel:${allocated.customerPhone.replace(/\D/g,'')}'">📞 Call Customer</button>
       `;
     }
-
     function renderJobHistory() {
       state.els.menuContent.innerHTML = '';
       if (state.driverJobs.length === 0) {
@@ -1166,6 +1026,7 @@
             </div>
           `;
         }
+        // ✅ CRITICAL FIX: Display job data correctly
         jobEl.innerHTML = `
           <div class="job-id">${job.job}</div>
           <div class="job-pub">Pub: ${job.pubName || '—'}</div>
@@ -1181,6 +1042,7 @@
         jobsContainer.appendChild(jobEl);
       });
       state.els.menuContent.appendChild(jobsContainer);
+      // Attach event listeners for action buttons (only for queued jobs)
       state.els.menuContent.querySelectorAll('[data-action]').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const action = e.target.dataset.action;
@@ -1202,9 +1064,10 @@
           }
         });
       });
+      // ✅ ATTACH SWIPE-TO-DELETE AFTER DOM IS POPULATED
       attachSwipeToDelete();
     }
-
+    // ✅ SWIPE-TO-DELETE FUNCTION (Same as before)
     function attachSwipeToDelete() {
       const items = document.querySelectorAll('#jobHistoryContent .job-item');
       items.forEach(item => {
@@ -1215,16 +1078,17 @@
           startX = clientX;
           currentX = startX;
           isSwiping = true;
-          item.classList.remove('swipe-delete');
+          item.classList.remove('swipe-delete'); // Ensure clean state on start
         };
         const handleMove = (clientX) => {
           if (!isSwiping) return;
           currentX = clientX;
           const diff = currentX - startX;
-          if (diff > 0) {
+          if (diff > 0) { // Only swipe right
             item.classList.add('swiping');
-            item.style.transform = `translateX(${Math.min(diff, 80)}px)`;
+            item.style.transform = `translateX(${Math.min(diff, 80)}px)`; // Limit translation
           } else {
+            // If swiping left, reset
             item.classList.remove('swiping');
             item.style.transform = '';
           }
@@ -1233,51 +1097,59 @@
           if (!isSwiping) return;
           const diff = currentX - startX;
           item.classList.remove('swiping');
-          item.style.transform = '';
+          item.style.transform = ''; // Reset transform after animation
           isSwiping = false;
-          if (diff > 50) {
+          if (diff > 50) { // Threshold for deletion
             const jobId = item.dataset.jobId;
             if (confirm(`🗑️ Delete job '${jobId}' permanently?`)) {
+              // Animate removal
               item.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
               item.style.transform = 'translateX(100vw)';
               item.style.opacity = '0';
               setTimeout(() => {
+                // Remove from state array
                 state.driverJobs = state.driverJobs.filter(job => job.job !== jobId);
+                // Update local storage
                 localStorage.setItem(`driver_jobs_${state.DRIVER_ID}`, JSON.stringify(state.driverJobs));
+                // Re-render the list to reflect the change
                 if (state.isMenuOpen && state.currentView === 'jobHistory') renderJobHistory();
-              }, 300);
+              }, 300); // Match the transition duration
             }
           }
         };
+        // Touch Events for mobile
         item.addEventListener('touchstart', e => {
             handleStart(e.touches[0].clientX);
-            e.preventDefault();
+            e.preventDefault(); // Prevent scrolling while swiping
         });
         item.addEventListener('touchmove', e => {
             handleMove(e.touches[0].clientX);
-            e.preventDefault();
+            e.preventDefault(); // Prevent scrolling while swiping
         });
         item.addEventListener('touchend', handleEnd);
+        // Mouse Events for desktop/testing
         item.addEventListener('mousedown', e => {
             handleStart(e.clientX);
-            e.preventDefault();
+            e.preventDefault(); // Prevent text selection
         });
         item.addEventListener('mousemove', e => {
             if (isSwiping) {
                 handleMove(e.clientX);
-                e.preventDefault();
+                e.preventDefault(); // Prevent text selection during swipe
             }
         });
         item.addEventListener('mouseup', handleEnd);
+        // Also handle mouse leaving the element while dragging
         item.addEventListener('mouseleave', () => {
             if (isSwiping) {
                 handleEnd();
             }
         });
+        // Prevent text selection during swipe interaction
         item.addEventListener('selectstart', e => e.preventDefault());
       });
     }
-
+    // ===== CHAT SYSTEM =====
     function renderChatView() {
       state.els.menuContent.innerHTML = `
         <div id="chatContent" style="height:100%; display:flex; flex-direction:column;">
@@ -1312,18 +1184,21 @@
           }
         });
       }
-      updateOnlineDriverList();
+      updateOnlineDriverList(); // Update the list when rendering the view
       openChat('group');
     }
-
+    // New function to update the online driver list
     function updateOnlineDriverList() {
       const driverListEl = document.getElementById('onlineDriverList');
       if (!driverListEl) return;
-      driverListEl.innerHTML = '';
+      driverListEl.innerHTML = ''; // Clear the list first
+      // Determine if a driver is "online" based on recent status updates
       const now = Date.now();
-      const onlineThreshold = 30000;
+      const onlineThreshold = 30000; // 30 seconds
       const onlineDrivers = Object.entries(state.driverStatus).filter(([driverId, statusData]) => {
+        // Exclude the current driver
         if (driverId === state.DRIVER_ID) return false;
+        // Check if the status update is recent
         return now - (statusData.ts || 0) < onlineThreshold;
       });
       if (onlineDrivers.length === 0) {
@@ -1333,7 +1208,8 @@
       onlineDrivers.forEach(([driverId, statusData]) => {
         const driverItem = document.createElement('div');
         driverItem.className = 'driver-item';
-        let statusColor = 'status-offline-indicator';
+        // Determine status color based on statusData.status
+        let statusColor = 'status-offline-indicator'; // Default to offline
         if (statusData.status === 'available') statusColor = 'status-available-indicator';
         if (statusData.status === 'busy') statusColor = 'status-busy-indicator';
         driverItem.innerHTML = `
@@ -1343,7 +1219,6 @@
         driverListEl.appendChild(driverItem);
       });
     }
-
     function openChat(chatId) {
       state.currentChat = chatId;
       const chatList = document.getElementById('chatList');
@@ -1364,13 +1239,13 @@
         };
       }
     }
-
     function renderChatMessages() {
       const chatMessagesEl = document.getElementById('chatMessages');
       if (!chatMessagesEl) return;
       chatMessagesEl.innerHTML = '';
       const messages = state.chatMessages[state.currentChat] || [];
       messages.forEach(msg => {
+        // ✅ FIXED: Ensure sender and text are valid strings
         const text = typeof msg.text === 'string' ? msg.text : '[No message]';
         const sender = typeof msg.sender === 'string' ? msg.sender : 'unknown';
         const time = msg.timestamp
@@ -1389,7 +1264,6 @@
       });
       chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
     }
-
     function sendChatMessage() {
       const input = document.getElementById('chatInput');
       const text = input?.value.trim();
@@ -1399,22 +1273,21 @@
       addMessage('group', state.DRIVER_ID, text);
       input.value = '';
     }
-
     function addMessage(chatId, sender, text, timestamp = Date.now()) {
       if (!state.chatMessages[chatId]) state.chatMessages[chatId] = [];
+      // ✅ FIXED: Ensure sender and text are valid strings before adding
       state.chatMessages[chatId].push({ sender: typeof sender === 'string' ? sender : 'unknown', text: typeof text === 'string' ? text : '[No message]', timestamp });
       if (state.chatMessages[chatId].length > 50) {
         state.chatMessages[chatId] = state.chatMessages[chatId].slice(-50);
       }
       localStorage.setItem(`chat_group_${state.DRIVER_ID}`, JSON.stringify(state.chatMessages.group));
-      if (state.isMenuOpen && state.currentView === 'chat' && state.currentChat === chatId) {
+      if (state.isMenuOpen && state.currentView === 'chat' && state.currentView === chatId) {
         renderChatMessages();
       }
-      if (!state.isMenuOpen || state.currentView !== 'chat' || state.currentChat !== chatId) {
+      if (!state.isMenuOpen || state.currentView !== 'chat' || state.currentView !== chatId) {
         state.unreadCounts[chatId] = (state.unreadCounts[chatId] || 0) + 1;
       }
     }
-
     function renderSettingsView() {
       state.els.menuContent.innerHTML = `
         <div class="settings-group">
@@ -1465,7 +1338,6 @@
         }
       });
     }
-
     function renderView(view) {
       state.currentView = view;
       document.querySelectorAll('.menu-nav-btn').forEach(btn => {
@@ -1476,7 +1348,7 @@
       else if (view === 'chat') renderChatView();
       else if (view === 'settings') renderSettingsView();
     }
-
+    // ===== MAP & GPS =====
     const BLACK_CAB_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 58 36" width="58" height="36"><rect x="4" y="14" width="50" height="14" rx="3" ry="3" fill="#000"/><path d="M18 14v-4c0-3 2-5 5-5h12c3 0 5 2 5 5v4h-22z" fill="#000"/><rect x="25" y="4" width="8" height="3" rx="1" fill="#FFD700" stroke="#000" stroke-width="0.5"/><text x="29" y="6.6" text-anchor="middle" font-size="2.2" font-weight="bold" fill="#000" font-family="Arial, sans-serif">TAXI</text><rect x="21" y="7" width="6" height="6" rx="1" fill="#fff"/><rect x="31" y="7" width="6" height="6" rx="1" fill="#fff"/><circle cx="15" cy="28" r="4" fill="#fff" stroke="#000" stroke-width="1"/><circle cx="43" cy="28" r="4" fill="#fff" stroke="#000" stroke-width="1"/></svg>`;
     function createBlackCabIcon(heading = 0) {
       const div = document.createElement('div');
@@ -1485,7 +1357,6 @@
       svg.style.transform = `rotate(${heading}deg)`;
       return L.divIcon({ html: svg.outerHTML, iconSize: [58, 36], iconAnchor: [29, 18], className: 'taxi-marker' });
     }
-
     function initMapImmediately() {
       document.getElementById('loadingOverlay').style.display = 'none';
       state.map = L.map('map').setView([52.4068, -1.5197], 13);
@@ -1494,12 +1365,13 @@
         icon: createBlackCabIcon(0)
       }).addTo(state.map);
       initGPS();
-      if (isAppVisible()) {
+      // --- NEW (v9.0): Request wake lock immediately after app is initialized ---
+      if (isAppVisible()) { // Only request if the app is currently visible
         console.log("App initialized and visible. Attempting to acquire initial wake lock.");
         requestWakeLock();
       }
+      // --- End NEW ---
     }
-
     function initGPS() {
       if (!('geolocation' in navigator)) {
         state.els.status.innerHTML = '<span class="gps-source gps-poor"></span>Geolocation not supported.';
@@ -1532,7 +1404,6 @@
       );
       connectMQTT();
     }
-
     function publishLocationThrottled(gpsData) {
       if (!state.client?.connected) return;
       state.client.publish(`drivers/${state.DRIVER_ID}/location`, JSON.stringify({
@@ -1544,11 +1415,11 @@
         heading: Math.round(gpsData.heading || 0)
       }));
     }
-
+    // ===== MQTT & FCM (WITH LOGS) =====
     function connectMQTT() {
       state.client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", { reconnectPeriod: 1000 });
       state.client.on('connect', () => {
-        console.log("✅ MQTT Connected as:", state.DRIVER_ID);
+        console.log("✅ MQTT Connected as:", state.DRIVER_ID); // ✅ LOG: Connection
         state.els.status.textContent = `✅ Connected as ${state.DRIVER_ID}`;
         state.client.subscribe("pubs/requests/+");
         state.client.subscribe(`jobs/+/result/${state.DRIVER_ID}`);
@@ -1557,6 +1428,7 @@
         state.client.subscribe("drivers/+/status");
         state.client.subscribe("chat/group");
         state.client.subscribe(`chat/private/${state.DRIVER_ID}/+`);
+        // ✅ LOG: Publish initial status
         const statusPayload = { driver: state.DRIVER_ID, status: state.driverPresence, ts: Date.now() };
         state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify(statusPayload));
         console.log("📤 Published initial driver status:", statusPayload);
@@ -1566,23 +1438,27 @@
       state.client.on('message', (topic, msg) => {
         try {
           const data = JSON.parse(msg.toString());
+          // ✅ LOG: All MQTT messages
           console.log("📡 MQTT received:", topic, data);
+          // PASSENGER PRESETS
           if (topic === `drivers/${state.DRIVER_ID}/presets`) {
             handlePassengerPreset(data);
             return;
           }
+          // ✅ FIXED: NEW JOBS - Check seenJobIds BEFORE calling showJobPanel
           if (topic.startsWith("pubs/requests/")) {
-            if (state.seenJobIds.has(data.job)) {
+            if (state.seenJobIds.has(data.job)) { // ✅ Check here in MQTT handler
               console.log("⏭️ Skipping duplicate job (MQTT):", data.job);
-              return;
+              return; // Exit early if duplicate
             }
+            // Mark as seen IMMEDIATELY after check
             state.seenJobIds.add(data.job);
             console.log("🆕 New unique job received and marked as seen:", data.job);
             state.pendingJobs.push({ ...data, receivedAt: Date.now() });
             saveToStorage(`pending_jobs_${state.DRIVER_ID}`, state.pendingJobs);
             addJobToHistory(data, 'queued');
             if (state.driverPresence === 'available' && !state.isJobActive) {
-              showJobPanel(data);
+              showJobPanel(data); // ✅ This should now work reliably
             } else if (state.driverPresence === 'busy') {
               speakFeedback("New job queued. You are set to busy.");
               const btn = document.getElementById('menuBtn');
@@ -1594,6 +1470,7 @@
               }, 600);
             }
           }
+          // JOB RESULTS
           if (topic.startsWith("jobs/") && topic.endsWith(`/result/${state.DRIVER_ID}`)) {
             const jobId = topic.split('/')[1];
             if (data.result === "won") {
@@ -1605,6 +1482,7 @@
               else renderView('currentJob');
             }
           }
+          // CHAT
           if (topic === "chat/group") {
             if (data.sender !== state.DRIVER_ID) {
               addMessage('group', data.sender, data.text, data.timestamp);
@@ -1616,19 +1494,21 @@
               addMessage(sender, data.sender, data.text, data.timestamp);
             }
           }
+          // DRIVER LOCATIONS & STATUS
           if (topic.startsWith("drivers/") && topic.endsWith("/location")) {
             const driverId = topic.split('/')[1];
             if (driverId === state.DRIVER_ID) return;
             state.otherDrivers[driverId] = data;
-            state.driverStatus[driverId] = data;
+            state.driverStatus[driverId] = data; // Store the full status object including ts and status
             updateChatList();
           }
           if (topic.startsWith("drivers/") && topic.endsWith("/status")) {
             const driverId = topic.split('/')[1];
             if (driverId === state.DRIVER_ID) return;
-            state.driverStatus[driverId] = data;
-            console.log(`📊 Driver ${driverId} status updated:`, data.status);
+            state.driverStatus[driverId] = data; // Store the full status object including ts and status
+            console.log(`📊 Driver ${driverId} status updated:`, data.status); // ✅ LOG: Driver status
             updateChatList();
+            // Update the online driver list when a status is received
             if (state.isMenuOpen && state.currentView === 'chat') {
                 updateOnlineDriverList();
             }
@@ -1638,7 +1518,6 @@
         }
       });
     }
-
     function handlePassengerPreset(data) {
       const msgText = 
         data.presetType === "where_are_you" ? "Passenger asks: Where are you?" :
@@ -1648,7 +1527,6 @@
       speakFeedback(msgText);
       showPassengerPopup(msgText, data);
     }
-
     function showPassengerPopup(msg, data) {
       document.getElementById('passengerPopupMsg').textContent = msg;
       document.getElementById('passengerPopup').style.display = 'block';
@@ -1656,7 +1534,6 @@
       document.getElementById('presetReply1').onclick = () => sendPresetReply('on_my_way', data);
       document.getElementById('presetReply2').onclick = () => sendPresetReply('arrived', data);
     }
-
     function sendPresetReply(type, data) {
       if (!state.client) return;
       state.client.publish('server/preset_replies', JSON.stringify({
@@ -1666,43 +1543,41 @@
         jobId: data?.jobId,
         timestamp: Date.now()
       }));
-      console.log("📤 Sent preset reply:", type, "for job", data?.jobId);
+      console.log("📤 Sent preset reply:", type, "for job", data?.jobId); // ✅ LOG: Preset reply sent
       document.getElementById('passengerPopup').style.display = 'none';
     }
-
+    // ✅ LOGGED: FCM Token Flow
     async function requestFCMToken() {
       try {
-        console.log("🔐 Requesting FCM token...");
+        console.log("🔐 Requesting FCM token..."); // ✅ LOG: FCM request initiated
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') {
-          console.log("❌ FCM Permission denied by user.");
+          console.log("❌ FCM Permission denied by user."); // ✅ LOG: Permission denied
           return null;
         }
-        console.log("✅ FCM Permission granted. Registering service worker...");
+        console.log("✅ FCM Permission granted. Registering service worker..."); // ✅ LOG: Permission OK
         const reg = await navigator.serviceWorker.register('/blackcabunite/firebase-messaging-sw.js', { scope: '/blackcabunite/' });
-        console.log("✅ Service worker registered for FCM.");
+        console.log("✅ Service worker registered for FCM."); // ✅ LOG: SW registered
         state.fcmToken = await messaging.getToken({
           vapidKey: "BMl7GKaqVFHFCn3hkjtrgguYUIM87Hfqd4bbN5lzBiWSjUjEFC8ToIi947P3GqyYnZmaHOJtVjwRHcUcCmuLbow",
           serviceWorkerRegistration: reg
         });
-        console.log("🔑 Acquired FCM token:", state.fcmToken ? state.fcmToken.substring(0, 12) + '...' : 'null');
+        console.log("🔑 Acquired FCM token:", state.fcmToken ? state.fcmToken.substring(0, 12) + '...' : 'null'); // ✅ LOG: Token acquired
         if (state.fcmToken) publishFcmToken();
         return state.fcmToken;
       } catch (err) {
-        console.error('❌ FCM setup failed:', err);
+        console.error('❌ FCM setup failed:', err); // ✅ LOG: FCM error
       }
     }
-
     function publishFcmToken() {
       if (!state.client?.connected || !state.fcmToken || !state.DRIVER_ID) {
-        console.log("⚠️ Cannot publish FCM token - MQTT not connected or missing data.");
+        console.log("⚠️ Cannot publish FCM token - MQTT not connected or missing data."); // ✅ LOG: Can't publish
         return;
       }
       const payload = { driverId: state.DRIVER_ID, fcmToken: state.fcmToken, ts: Date.now() };
       state.client.publish(`drivers/${state.DRIVER_ID}/fcm`, JSON.stringify(payload));
-      console.log("📤 Published FCM token via MQTT for driver:", state.DRIVER_ID);
+      console.log("📤 Published FCM token via MQTT for driver:", state.DRIVER_ID); // ✅ LOG: Token published
     }
-
     function updateJobStatus(jobId, status) {
       const jobIndex = state.driverJobs.findIndex(j => j.job === jobId);
       if (jobIndex >= 0) {
@@ -1712,15 +1587,16 @@
         if (state.isMenuOpen && state.currentView === 'currentJob') renderCurrentJob();
       }
     }
-
+    // ===== WAKE LOCK FUNCTIONS (v9.0) =====
+    // Helper function to check if the app is currently visible (tab is active)
     function isAppVisible() {
       return document.visibilityState === 'visible';
     }
-
+    // Helper function to check if any job is allocated
     function isJobAllocated() {
       return state.driverJobs.some(job => job.status === 'allocated');
     }
-
+    // Main function to request the wake lock
     async function requestWakeLock() {
       if (!('wakeLock' in navigator)) {
         console.log("⚠️ Screen Wake Lock API not supported by this browser.");
@@ -1728,33 +1604,352 @@
       }
       try {
         console.log("🔋 Attempting to request screen wake lock...");
+        // Request the wake lock for the screen
         state.wakeLock = await navigator.wakeLock.request('screen');
         console.log("🔋 Screen wake lock acquired.");
+        // Listen for the wake lock being released (e.g., by the system or user action)
         state.wakeLock.addEventListener('release', () => {
           console.log("🔋 Screen wake lock was released.");
-          state.wakeLock = null;
+          state.wakeLock = null; // Clear the reference
+          // Potentially try to re-acquire if conditions are still met, handled by visibilitychange
         });
       } catch (err) {
         console.error("❌ Failed to acquire screen wake lock:", err.message);
-        state.wakeLock = null;
+        state.wakeLock = null; // Ensure state is cleared on failure
       }
     }
-
+    // Function to attempt to release the current wake lock
     async function releaseWakeLock() {
       if (state.wakeLock) {
         try {
           console.log("⏹️ Attempting to release screen wake lock...");
           await state.wakeLock.release();
           console.log("✅ Wake lock released successfully.");
-          state.wakeLock = null;
+          state.wakeLock = null; // Clear the reference
         } catch (err) {
           console.error("⚠️ Error releasing wake lock:", err.message);
-          state.wakeLock = null;
+          state.wakeLock = null; // Clear the reference anyway to avoid stale state
         }
       }
     }
 
-    // ===== INIT APP (with Rank feature) =====
+    // ===== === NEW: RANK FEATURE === =====
+// ===== RANK FEATURE LOGIC =====
+// ===== RANK FEATURE LOGIC =====
+function initRankFeature() {
+  const rankBtn = document.getElementById('rankBtn');
+  const rankModal = document.getElementById('rankModal');
+  const rankCloseBtn = document.getElementById('rankCloseBtn');
+  const rankNavBtn = document.getElementById('rankNavBtn');
+  const rankDestinationInput = document.getElementById('rankDestinationInput');
+  const rankSearchBtn = document.getElementById('rankSearchBtn');
+  const rankMapContainer = document.getElementById('rankMapContainer');
+  const rankSearchStatus = document.getElementById('rankSearchStatus');
+
+  let rankMap = null;
+  let routeLine = null;
+  let driverMarker = null; // Store the driver's marker on the rank map
+  let dropoffMarker = null; // Store the drop-off marker
+  const jobMarkers = [];
+
+  // --- NEW: Function to safely update the driver marker ---
+  function updateDriverMarkerOnRankMap() {
+      if (!rankMap || !state.driverCoords || !state.driverCoords.lat || !state.driverCoords.lng) {
+          console.log("Rank: Cannot update driver marker - map not ready or coords missing.");
+          return;
+      }
+
+      const driverPos = [state.driverCoords.lat, state.driverCoords.lng];
+      const driverHeading = state.driverCoords.heading || 0;
+
+      if (driverMarker) {
+          // Update existing marker
+          driverMarker.setLatLng(driverPos);
+          driverMarker.setIcon(createBlackCabIcon(driverHeading));
+          console.log("Rank: Updated existing driver marker on modal map.");
+      } else {
+          // Create new marker if it doesn't exist
+          driverMarker = L.marker(driverPos, {
+              icon: createBlackCabIcon(driverHeading)
+          }).addTo(rankMap);
+          console.log("Rank: Added new driver marker to modal map.");
+      }
+  }
+  // --- END NEW ---
+
+  rankBtn?.addEventListener('click', () => {
+    console.log("Rank button clicked.");
+    rankModal.style.display = 'flex';
+    rankDestinationInput.value = '';
+    rankSearchStatus.textContent = "Enter destination and click 🔍 or press Enter";
+
+    if (!rankMap) {
+      console.log("Initializing Rank modal map...");
+      rankMap = L.map(rankMapContainer, {
+        zoomControl: true,
+        attributionControl: false
+      });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18
+      }).addTo(rankMap);
+    }
+
+    // Update the driver marker on the rank map when modal opens
+    // This ensures it's placed if coords are available now
+    updateDriverMarkerOnRankMap();
+
+    // Re-center or set initial view after modal is open, prioritize driver location
+    if (state.driverCoords && state.driverCoords.lat && state.driverCoords.lng) {
+      rankMap.setView([state.driverCoords.lat, state.driverCoords.lng], 12);
+    } else {
+      rankMap.setView([52.4068, -1.5197], 12); // Fallback
+    }
+    rankMap.invalidateSize();
+    console.log("Rank map view set / invalidated size.");
+  });
+
+  rankCloseBtn?.addEventListener('click', () => {
+    console.log("Rank modal closed.");
+    rankModal.style.display = 'none';
+    if (routeLine) { rankMap.removeLayer(routeLine); routeLine = null; }
+    if (driverMarker) { rankMap.removeLayer(driverMarker); driverMarker = null; }
+    if (dropoffMarker) { rankMap.removeLayer(dropoffMarker); dropoffMarker = null; }
+    jobMarkers.forEach(m => rankMap.removeLayer(m));
+    jobMarkers.length = 0;
+  });
+
+  rankSearchBtn?.addEventListener('click', async () => {
+    const query = rankDestinationInput.value.trim();
+    console.log("Rank search button clicked for query:", query);
+    if (query.length < 3) {
+      rankSearchStatus.textContent = "Please enter at least 3 characters.";
+      return;
+    }
+    await performSearch(query);
+  });
+
+  rankDestinationInput?.addEventListener('keypress', async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const query = rankDestinationInput.value.trim();
+      console.log("Rank search via Enter key for query:", query);
+      if (query.length < 3) {
+        rankSearchStatus.textContent = "Please enter at least 3 characters.";
+        return;
+      }
+      await performSearch(query);
+    }
+  });
+
+  async function performSearch(query) {
+    console.log("Performing search for:", query);
+    rankSearchStatus.textContent = "Searching...";
+
+    try {
+      if (!rankMap) {
+          console.error("Rank: Map instance not available for search.");
+          rankSearchStatus.textContent = "Map not ready. Please try again.";
+          return;
+      }
+
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+
+      console.log("Rank: Fetching URL:", url);
+
+      const res = await fetch(url, {
+          method: 'GET',
+          mode: 'cors',
+          headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'BlackCabUnite-Rank-Feature/1.0 (https://your-github-page.github.io/)'
+          }
+      });
+
+      console.log("Rank: Fetch response status:", res.status);
+
+      if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+      }
+
+      const data = await res.json();
+      console.log("Rank: Geocoding response ", data);
+
+      if (!data || !data[0]) {
+          rankSearchStatus.textContent = "📍 Destination not found";
+          console.warn("Rank: Geocoding returned no results for query:", query);
+          return;
+      }
+
+      const dropoff = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      if (isNaN(dropoff.lat) || isNaN(dropoff.lng)) {
+          throw new Error("Invalid coordinates received from geocoding service.");
+      }
+
+      const from = state.driverCoords ? [state.driverCoords.lat, state.driverCoords.lng] : [52.4, -1.5];
+      const to = [dropoff.lat, dropoff.lng];
+
+      // Clear old route, dropoff marker, and job markers
+      if (routeLine) { rankMap.removeLayer(routeLine); routeLine = null; }
+      if (dropoffMarker) { rankMap.removeLayer(dropoffMarker); dropoffMarker = null; }
+      jobMarkers.forEach(m => rankMap.removeLayer(m));
+      jobMarkers.length = 0;
+
+      // --- NEW: Calculate and Display Street Route using OSRM ---
+      let distanceKm = null; // Initialize distance variable
+      let timeMinutes = null; // Initialize time variable
+      try {
+        // OSRM demo server endpoint for car profile
+        const osrmRouteUrl = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
+
+        console.log("Rank: Fetching OSRM route URL:", osrmRouteUrl);
+
+        const routeRes = await fetch(osrmRouteUrl);
+        if (!routeRes.ok) {
+            throw new Error(`OSRM route request failed with status ${routeRes.status}`);
+        }
+
+        const routeData = await routeRes.json();
+        console.log("Rank: OSRM route response", routeData);
+
+        if (!routeData.routes || routeData.routes.length === 0) {
+            throw new Error("No route found by OSRM.");
+        }
+
+        const routeGeometry = routeData.routes[0].geometry;
+        const routeDistance = routeData.routes[0].distance; // in meters
+        const routeDuration = routeData.routes[0].duration; // in seconds
+
+        // Convert distance to km and duration to minutes
+        distanceKm = (routeDistance / 1000).toFixed(2);
+        timeMinutes = Math.round(routeDuration / 60);
+
+        // Create a polyline from the OSRM geometry
+        routeLine = L.polyline(L.GeoJSON.geometryToLayer(routeGeometry).getLatLngs(), {
+            color: '#1f6feb',
+            weight: 5,
+            opacity: 0.7
+        }).addTo(rankMap);
+
+        // Add popups to the route line showing distance and time
+        routeLine.bindPopup(`Distance: ${distanceKm} km<br>Est. Time: ~${timeMinutes} min`);
+
+        console.log(`Rank: OSRM calculated distance: ${distanceKm} km, est. time: ~${timeMinutes} min`);
+
+      } catch (routeErr) {
+          console.error("Rank: Error calculating OSRM route:", routeErr);
+          // Fallback to simple straight-line polyline if OSRM fails
+          rankSearchStatus.textContent = `Route calculation failed: ${routeErr.message}. Showing straight-line.`;
+          const R = 6371; // Earth radius in km
+          const dLat = (dropoff.lat - from[0]) * Math.PI / 180;
+          const dLon = (dropoff.lng - from[1]) * Math.PI / 180;
+          const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(from[0] * Math.PI / 180) * Math.cos(dropoff.lat * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          const straightLineDistanceKm = R * c;
+          const avgSpeedKmh = 30;
+          const timeHours = straightLineDistanceKm / avgSpeedKmh;
+          const straightLineTimeMinutes = Math.round(timeHours * 60);
+          routeLine = L.polyline([from, to], { color: '#1f6feb', weight: 4, dashArray: '5,5' }).addTo(rankMap);
+          routeLine.bindPopup(`Distance: ${straightLineDistanceKm.toFixed(2)} km<br>Est. Time: ~${straightLineTimeMinutes} min (straight-line)`);
+          // Set distance and time for fallback calculation for status display
+          distanceKm = straightLineDistanceKm.toFixed(2);
+          timeMinutes = straightLineTimeMinutes;
+      }
+      // --- END NEW ---
+
+      // Update or add drop-off marker
+      if (dropoffMarker) {
+          dropoffMarker.setLatLng(to);
+      } else {
+          dropoffMarker = L.marker(to, { title: "Drop-off" }).addTo(rankMap);
+      }
+      dropoffMarker.bindPopup("📍 Drop-off destination").openPopup();
+
+      // Update driver marker position and icon again after route/dropoff are added
+      // This ensures the driver's current location is always shown on the map
+      updateDriverMarkerOnRankMap();
+
+      // Nearby jobs
+      const R = 6371; // Re-declare R if needed elsewhere
+      const maxDist = state.maxRadius || 10;
+      const nearbyJobs = state.pendingJobs.filter(job => {
+        if (!job.lat || !job.lng) return false;
+        const dLat = (job.lat - dropoff.lat) * Math.PI / 180;
+        const dLon = (job.lng - dropoff.lng) * Math.PI / 180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(dropoff.lat * Math.PI / 180) * Math.cos(job.lat * Math.PI / 180) * Math.sin(dLon/2)**2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return (R * c) <= maxDist;
+      });
+
+      console.log(`Rank: Found ${nearbyJobs.length} jobs near the destination.`);
+
+      nearbyJobs.forEach(job => {
+        const marker = L.circleMarker([job.lat, job.lng], {
+          radius: 7,
+          fillColor: '#28a745',
+          color: '#fff',
+          weight: 2,
+          fillOpacity: 0.9
+        }).addTo(rankMap);
+
+        marker.bindPopup(`
+          <b>Job:</b> ${job.job}<br>
+          <b>Pub:</b> ${job.pubName || '—'}<br>
+          <button onclick="(function(){
+            respondToJob(true, ${JSON.stringify(job)});
+            document.getElementById('rankModal').style.display='none';
+            if (routeLine) { rankMap.removeLayer(routeLine); routeLine = null; }
+            if (driverMarker) { rankMap.removeLayer(driverMarker); driverMarker = null; }
+            if (dropoffMarker) { rankMap.removeLayer(dropoffMarker); dropoffMarker = null; }
+            jobMarkers.forEach(m => rankMap.removeLayer(m));
+            jobMarkers.length = 0;
+          })()" style="margin-top:6px; padding:4px 8px; background:#1f6feb; color:white; border:none; border-radius:4px; font-size:12px;">
+            💰 Bid Now
+          </button>
+        `);
+        jobMarkers.push(marker);
+      });
+
+      // Fit view to show driver, destination, and nearby jobs
+      const bounds = L.latLngBounds([from, to]);
+      nearbyJobs.forEach(j => bounds.extend([j.lat, j.lng]));
+      rankMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+
+      // Enable nav
+      rankNavBtn.disabled = false;
+      rankNavBtn.style.opacity = "1";
+      rankNavBtn.style.cursor = "pointer";
+
+      // --- NEW: Update status text to include distance, time, and job count ---
+      if (distanceKm !== null && timeMinutes !== null) {
+          rankSearchStatus.textContent = `Route: ${distanceKm} km, ~${timeMinutes} min. Found ${nearbyJobs.length} job(s) near destination.`;
+      } else {
+          // Fallback if distance/time calculation failed entirely
+          rankSearchStatus.textContent = `Found ${nearbyJobs.length} job(s) near destination.`;
+      }
+      // --- END NEW ---
+
+      rankNavBtn.onclick = () => {
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${dropoff.lat},${dropoff.lng}`, '_blank');
+      };
+
+    } catch (err) {
+      console.error("Rank error during search:", err);
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+          rankSearchStatus.textContent = "Network error (CORS). The geocoding service might not allow requests from this domain.";
+      } else if (err.message.includes('HTTP error')) {
+          rankSearchStatus.textContent = `Geocoding service error: ${err.message}`;
+      } else if (err.message.includes('Invalid coordinates')) {
+          rankSearchStatus.textContent = "Geocoding returned invalid coordinates.";
+      } else {
+          rankSearchStatus.textContent = `Search failed: ${err.message || 'Unknown error'}`;
+      }
+    }
+  }
+}
+
+    // ===== INITIALIZATION =====
     function initApp() {
       if (!state.DRIVER_ID || !validateDriverId(state.DRIVER_ID)) {
         while (!state.DRIVER_ID || !validateDriverId(state.DRIVER_ID)) {
@@ -1762,13 +1957,15 @@
           if (state.DRIVER_ID === null) state.DRIVER_ID = 'driver-' + Math.random().toString(36).substr(2, 8);
         }
         localStorage.setItem('driver_id', state.DRIVER_ID);
+        // ✅ Reload state after setting DRIVER_ID
         state.driverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${state.DRIVER_ID}`)) || [];
         state.pendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${state.DRIVER_ID}`)) || [];
+        // ✅ Repopulate seenJobIds after DRIVER_ID is known
         const savedDriverJobs = JSON.parse(localStorage.getItem(`driver_jobs_${state.DRIVER_ID}`)) || [];
         const savedPendingJobs = JSON.parse(localStorage.getItem(`pending_jobs_${state.DRIVER_ID}`)) || [];
         state.seenJobIds = new Set([...savedDriverJobs.map(j => j.job), ...savedPendingJobs.map(p => p.job)]);
       }
-
+      // Menu Toggle
       state.els.menuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (state.isMenuOpen) {
@@ -1780,26 +1977,25 @@
           renderView(state.currentView);
         }
       });
-
+      // Nav Buttons
       document.querySelectorAll('.menu-nav-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           renderView(btn.dataset.view);
         });
       });
-
+      // Job Actions (Accept/Reject Buttons)
       state.els.acceptBtn.addEventListener('click', () => respondToJob(true));
       state.els.rejectBtn.addEventListener('click', () => respondToJob(false));
-
+      // Status Dropdown
       document.getElementById('appTitleContainer').addEventListener('click', (e) => {
         e.stopPropagation();
         state.els.statusDropdown.style.display = state.els.statusDropdown.style.display === 'flex' ? 'none' : 'flex';
       });
-
       document.querySelectorAll('.status-option').forEach(opt => {
         opt.addEventListener('click', () => {
           const newStatus = opt.dataset.status;
-          console.log(`🔄 Driver status changing from '${state.driverPresence}' to '${newStatus}'`);
+          console.log(`🔄 Driver status changing from '${state.driverPresence}' to '${newStatus}'`); // ✅ LOG: Status change
           state.driverPresence = newStatus;
           localStorage.setItem('driver_presence', newStatus);
           document.getElementById('statusCaption').className = `status-${newStatus}`;
@@ -1808,13 +2004,12 @@
           if (state.client?.connected) {
             const statusPayload = { driver: state.DRIVER_ID, status: newStatus, ts: Date.now() };
             state.client.publish(`drivers/${state.DRIVER_ID}/status`, JSON.stringify(statusPayload));
-            console.log("📤 Published status change via MQTT:", statusPayload);
+            console.log("📤 Published status change via MQTT:", statusPayload); // ✅ LOG: Status published
           }
         });
       });
-
       document.getElementById('logOffBtn').addEventListener('click', () => {
-        console.log("🚪 Driver logging off (setting status to offline)");
+        console.log("🚪 Driver logging off (setting status to offline)"); // ✅ LOG: Log off
         state.driverPresence = 'offline';
         localStorage.setItem('driver_presence', 'offline');
         document.getElementById('statusCaption').className = 'status-offline';
@@ -1825,7 +2020,7 @@
           state.gpsWatchId = null;
         }
       });
-
+      // Global Click Handler
       document.addEventListener('click', (e) => {
         state.els.statusDropdown.style.display = 'none';
         const isClickInsideMenu = state.els.menuPanel.contains(e.target) || e.target === state.els.menuBtn;
@@ -1834,7 +2029,7 @@
           state.isMenuOpen = false;
         }
       });
-
+      // --- NEW (v9.0): Add the visibility change listener ---
       document.addEventListener('visibilitychange', async () => {
         if (isAppVisible()) {
           console.log("👀 App tab became visible.");
@@ -1847,14 +2042,12 @@
           await releaseWakeLock();
         }
       });
-
-      // === CALL RANK INIT ===
+      // --- NEW: Initialize Rank Feature ---
       initRankFeature();
-
+      // --- End NEW ---
       initMapImmediately();
-      if ('serviceWorker' in navigator) requestFCMToken();
+      if ('serviceWorker' in navigator) requestFCMToken(); // ✅ Will log token flow
     }
-
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initApp);
     } else {
